@@ -707,19 +707,9 @@
       const newResBtn = document.getElementById('btn-new-reservation');
       if (newResBtn) newResBtn.classList.toggle('hidden', isClean);
 
-      // Drag hint text (역할별 분기)
+      // Drag hint 제거 (사용자 요청)
       const dragHint = document.getElementById('drag-hint');
-      if (dragHint) {
-        if (isAdmin) {
-          dragHint.textContent = '📝 빈 셀 드래그 → 예약 등록';
-          dragHint.classList.remove('hidden');
-        } else if (isClean) {
-          dragHint.textContent = '🧹 빈 셀 드래그 → 청소 일정 등록 (여러 숙소 선택 가능)';
-          dragHint.classList.remove('hidden');
-        } else {
-          dragHint.classList.add('hidden');
-        }
-      }
+      if (dragHint) dragHint.classList.add('hidden');
 
       // "청소 일정 등록" 버튼: 관리자는 숨김 (캘린더 드래그 또는 "새 예약" 버튼 사용)
       const addCleanBtn = document.getElementById('btn-add-cleaning');
@@ -1661,21 +1651,10 @@
         // 편집 모드
         if (editingRoom === r.name) {
           const [bedType, capacity] = r.type.split(' / ');
-          return `<div class="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          return `<div class="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg flex-wrap">
             <span class="font-medium whitespace-nowrap">${r.name} ${star}</span>
-            <select id="edit-bed-${r.name}" class="border rounded px-2 py-1 text-sm bg-white">
-              <option value="Q" ${bedType==='Q'?'selected':''}>Q (퀸)</option>
-              <option value="SS" ${bedType==='SS'?'selected':''}>SS (싱글싱글)</option>
-              <option value="S" ${bedType==='S'?'selected':''}>S (싱글)</option>
-              <option value="K" ${bedType==='K'?'selected':''}>K (킹)</option>
-              <option value="D" ${bedType==='D'?'selected':''}>D (더블)</option>
-            </select>
-            <select id="edit-cap-${r.name}" class="border rounded px-2 py-1 text-sm bg-white">
-              <option value="1인" ${capacity==='1인'?'selected':''}>1인</option>
-              <option value="2인" ${capacity==='2인'?'selected':''}>2인</option>
-              <option value="3인" ${capacity==='3인'?'selected':''}>3인</option>
-              <option value="4인" ${capacity==='4인'?'selected':''}>4인</option>
-            </select>
+            <input id="edit-bed-${r.name}" type="text" value="${bedType}" placeholder="예: 슈퍼싱글 2개" class="border rounded px-2 py-1 text-sm bg-white w-40">
+            <input id="edit-cap-${r.name}" type="text" value="${capacity}" placeholder="예: 2인" class="border rounded px-2 py-1 text-sm bg-white w-20">
             <div class="flex gap-1 ml-auto">
               <button class="px-2.5 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600" onclick="saveRoomEdit('${r.name}')">저장</button>
               <button class="px-2.5 py-1 bg-gray-200 text-gray-600 rounded text-sm hover:bg-gray-300" onclick="cancelRoomEdit()">취소</button>
