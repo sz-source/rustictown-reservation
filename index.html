@@ -203,7 +203,7 @@
     <div class="mb-6">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg font-semibold">🧹 이번 주 청소 일정</h2>
-        <button id="btn-add-cleaning" class="bg-emerald-500 text-white px-4 py-1.5 rounded text-sm hover:bg-emerald-600" onclick="openModal('cleaning-modal')">+ 청소 일정 등록</button>
+        <button id="btn-add-cleaning" class="bg-emerald-500 text-white px-4 py-1.5 rounded text-sm hover:bg-emerald-600" onclick="openCleaningModal()">+ 청소 일정 등록</button>
       </div>
       <div class="bg-white rounded-lg border overflow-hidden">
         <table class="w-full text-sm">
@@ -213,6 +213,7 @@
               <th class="px-4 py-2.5 text-center font-medium text-gray-600">청소일</th>
               <th class="px-4 py-2.5 text-center font-medium text-gray-600">담당</th>
               <th class="px-4 py-2.5 text-center font-medium text-gray-600">상태</th>
+              <th class="px-4 py-2.5 text-center font-medium text-gray-600 w-16"></th>
             </tr>
           </thead>
           <tbody id="ops-cleaning-tbody"></tbody>
@@ -238,16 +239,16 @@
       </div>
       <div class="p-5 space-y-4">
         <div id="clean-drag-info"></div>
-        <div><label class="block text-sm text-gray-600 mb-1">숙소 *</label><select class="border rounded w-full px-3 py-2 text-sm bg-white" id="clean-room-select"></select></div>
+        <div id="clean-room-wrapper"><label class="block text-sm text-gray-600 mb-1">숙소 *</label><select class="border rounded w-full px-3 py-2 text-sm bg-white" id="clean-room-select"></select></div>
         <div class="grid grid-cols-2 gap-3">
           <div><label class="block text-sm text-gray-600 mb-1">시작일 *</label><input id="clean-date-start" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-10"></div>
           <div><label class="block text-sm text-gray-600 mb-1">종료일 *</label><input id="clean-date-end" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-10"></div>
         </div>
-        <div><label class="block text-sm text-gray-600 mb-1">담당자</label><input type="text" class="border rounded w-full px-3 py-2 text-sm" placeholder="담당자 이름"></div>
-        <div><label class="block text-sm text-gray-600 mb-1">메모</label><textarea class="border rounded w-full px-3 py-2 text-sm h-16" placeholder="특이사항 (추가침구 등)"></textarea></div>
+        <div><label class="block text-sm text-gray-600 mb-1">담당자</label><input id="clean-person" type="text" class="border rounded w-full px-3 py-2 text-sm" placeholder="담당자 이름"></div>
+        <div><label class="block text-sm text-gray-600 mb-1">메모</label><textarea id="clean-memo" class="border rounded w-full px-3 py-2 text-sm h-16" placeholder="특이사항 (추가침구 등)"></textarea></div>
         <div class="flex gap-2 pt-2">
           <button class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded hover:bg-gray-200 text-sm" onclick="closeModal('cleaning-modal')">취소</button>
-          <button class="flex-1 bg-emerald-500 text-white py-2.5 rounded hover:bg-emerald-600 text-sm font-medium">등록</button>
+          <button class="flex-1 bg-emerald-500 text-white py-2.5 rounded hover:bg-emerald-600 text-sm font-medium" onclick="registerCleaning()">등록</button>
         </div>
       </div>
     </div>
@@ -414,7 +415,7 @@
     <div class="bg-white rounded-lg border p-5 mt-6">
       <div class="flex items-center justify-between mb-4">
         <h2 class="font-semibold">🎯 프로그램 관리</h2>
-        <button class="bg-blue-500 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-600" onclick="openModal('pgm-modal')">+ 프로그램 추가</button>
+        <button class="bg-blue-500 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-600" onclick="addPgm()">+ 프로그램 추가</button>
       </div>
       <div class="space-y-2" id="pgm-list"></div>
     </div>
@@ -588,7 +589,6 @@
           <div><label class="block text-sm text-gray-600 mb-1">시작일</label><input id="pgm-start" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-16"></div>
           <div><label class="block text-sm text-gray-600 mb-1">종료일</label><input id="pgm-end" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-19"></div>
         </div>
-        <div><label class="block text-sm text-gray-600 mb-1">이모지</label><input id="pgm-emoji" type="text" class="border rounded w-full px-3 py-2 text-sm" placeholder="🎯" maxlength="4"></div>
         <div><label class="block text-sm text-gray-600 mb-1">색상</label>
           <div class="flex gap-2 mt-1" id="pgm-color-picker">
             <div class="w-8 h-8 rounded-full cursor-pointer ring-2 ring-offset-1 ring-blue-400" style="background:#93c5fd" onclick="selectPgmColor(this,'#93c5fd')"></div>
@@ -603,7 +603,7 @@
         </div>
         <div class="flex gap-2 pt-2">
           <button class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded hover:bg-gray-200 text-sm" onclick="closeModal('pgm-modal')">취소</button>
-          <button class="flex-1 bg-blue-500 text-white py-2.5 rounded hover:bg-blue-600 text-sm font-medium">저장</button>
+          <button class="flex-1 bg-blue-500 text-white py-2.5 rounded hover:bg-blue-600 text-sm font-medium" onclick="savePgm()">저장</button>
         </div>
       </div>
     </div>
@@ -1388,17 +1388,24 @@
           }
           openModal('form-modal');
         } else {
-          // Cleaning: open cleaning modal (existing behavior)
-          document.getElementById('clean-room-select').value = selectedRooms[0];
-          document.getElementById('clean-date-start').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(fromDay).padStart(2,'0')}`;
-          document.getElementById('clean-date-end').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(toDay).padStart(2,'0')}`;
+          // Cleaning: open cleaning modal
+          const dateStart = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(fromDay).padStart(2,'0')}`;
+          const dateEnd = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(toDay).padStart(2,'0')}`;
+          document.getElementById('clean-date-start').value = dateStart;
+          document.getElementById('clean-date-end').value = dateEnd;
           const infoArea = document.getElementById('clean-drag-info');
-          if (infoArea) {
-            if (selectedRooms.length > 1) {
-              infoArea.innerHTML = `<div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700 mb-3">🧹 선택된 숙소: <strong>${selectedRooms.join(', ')}</strong> (${selectedRooms.length}실) · ${calMonth}/${fromDay}~${calMonth}/${toDay}</div>`;
-            } else {
-              infoArea.innerHTML = '';
-            }
+          const roomWrapper = document.getElementById('clean-room-wrapper');
+          if (selectedRooms.length > 1) {
+            // 다중 숙소: 드래그 정보 표시, 숙소 선택 숨김
+            draggedCleanRooms = [...selectedRooms];
+            if (infoArea) infoArea.innerHTML = `<div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700 mb-3">🧹 선택된 숙소: <strong>${selectedRooms.join(', ')}</strong> (${selectedRooms.length}실) · ${calMonth}/${fromDay}~${calMonth}/${toDay}</div>`;
+            if (roomWrapper) roomWrapper.classList.add('hidden');
+          } else {
+            // 단일 숙소: 숙소 선택 표시
+            draggedCleanRooms = [];
+            document.getElementById('clean-room-select').value = selectedRooms[0];
+            if (infoArea) infoArea.innerHTML = '';
+            if (roomWrapper) roomWrapper.classList.remove('hidden');
           }
           openModal('cleaning-modal');
         }
@@ -1472,9 +1479,22 @@
           }
           openModal('form-modal');
         } else if (selectedRooms.length > 0 && currentRole === 'cleaning') {
-          document.getElementById('clean-room-select').value = selectedRooms[0];
-          document.getElementById('clean-date-start').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(fromDay).padStart(2,'0')}`;
-          document.getElementById('clean-date-end').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(toDay).padStart(2,'0')}`;
+          const dateStart = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(fromDay).padStart(2,'0')}`;
+          const dateEnd = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(toDay).padStart(2,'0')}`;
+          document.getElementById('clean-date-start').value = dateStart;
+          document.getElementById('clean-date-end').value = dateEnd;
+          const infoArea = document.getElementById('clean-drag-info');
+          const roomWrapper = document.getElementById('clean-room-wrapper');
+          if (selectedRooms.length > 1) {
+            draggedCleanRooms = [...selectedRooms];
+            if (infoArea) infoArea.innerHTML = `<div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700 mb-3">🧹 선택된 숙소: <strong>${selectedRooms.join(', ')}</strong> (${selectedRooms.length}실) · ${calMonth}/${fromDay}~${calMonth}/${toDay}</div>`;
+            if (roomWrapper) roomWrapper.classList.add('hidden');
+          } else {
+            draggedCleanRooms = [];
+            document.getElementById('clean-room-select').value = selectedRooms[0];
+            if (infoArea) infoArea.innerHTML = '';
+            if (roomWrapper) roomWrapper.classList.remove('hidden');
+          }
           openModal('cleaning-modal');
         }
         dragState = null;
@@ -1532,10 +1552,11 @@
 
     function renderOpsCleaning() {
       const tbody = document.getElementById('ops-cleaning-tbody');
-      // cleaningSchedule 기반으로 테이블 렌더링 (이번 주 기준 필터)
+      // cleaningSchedule 전체를 날짜 순으로 정렬하여 표시
       const cleanings = cleaningSchedule
-        .filter(c => c.day >= 2 && c.day <= 15)
-        .map(c => ({ room: c.room, day: c.day, date: `${calMonth}/${c.day}`, person: c.person, done: c.done }));
+        .slice()
+        .sort((a, b) => a.day - b.day || a.room.localeCompare(b.room))
+        .map(c => ({ room: c.room, day: c.day, date: `3/${c.day}`, person: c.person, done: c.done }));
 
       let html = '';
       cleanings.forEach((c, i) => {
@@ -1544,7 +1565,8 @@
         const statusBadge = c.done
           ? `<span class="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 cursor-pointer" title="클릭하여 상태 변경" onclick="toggleCleanStatus('${c.room}',${c.day})">청소완료</span>`
           : `<span class="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 cursor-pointer" title="클릭하여 상태 변경" onclick="toggleCleanStatus('${c.room}',${c.day})">청소예정</span>`;
-        html += `<tr class="border-t${bg}"><td class="px-4 py-3 font-medium">${c.room}${star}</td><td class="text-center">${c.date}</td><td class="text-center">${c.person}</td><td class="text-center">${statusBadge}</td></tr>`;
+        const delBtn = `<button class="text-red-400 hover:text-red-600 text-xs" onclick="deleteCleaning('${c.room}',${c.day})">삭제</button>`;
+        html += `<tr class="border-t${bg}"><td class="px-4 py-3 font-medium">${c.room}${star}</td><td class="text-center">${c.date}</td><td class="text-center">${c.person}</td><td class="text-center">${statusBadge}</td><td class="text-center">${delBtn}</td></tr>`;
       });
       if (tbody) tbody.innerHTML = html;
 
@@ -1561,18 +1583,83 @@
     function toggleCleanStatus(room, day) {
       const item = cleaningSchedule.find(c => c.room === room && c.day === day);
       if (!item) return;
-      // Find the full span (consecutive days with same done status) and toggle all together
       const targetDone = item.done;
       const roomCleans = cleaningSchedule.filter(c => c.room === room).sort((a, b) => a.day - b.day);
-      // Expand left
       let startDay = day;
       while (roomCleans.some(c => c.day === startDay - 1 && c.done === targetDone)) startDay--;
-      // Expand right
       let endDay = day;
       while (roomCleans.some(c => c.day === endDay + 1 && c.done === targetDone)) endDay++;
-      // Toggle all days in this span
       roomCleans.filter(c => c.day >= startDay && c.day <= endDay && c.done === targetDone)
         .forEach(c => c.done = !c.done);
+      renderOpsCleaning();
+      renderMonthly();
+      renderWeekly();
+    }
+
+    // ========== REGISTER / DELETE CLEANING ==========
+    let draggedCleanRooms = []; // 드래그로 선택된 숙소 목록
+
+    function openCleaningModal() {
+      // 버튼으로 열 때: 드래그 정보 초기화, 숙소 선택 표시
+      draggedCleanRooms = [];
+      const infoArea = document.getElementById('clean-drag-info');
+      const roomWrapper = document.getElementById('clean-room-wrapper');
+      if (infoArea) infoArea.innerHTML = '';
+      if (roomWrapper) roomWrapper.classList.remove('hidden');
+      document.getElementById('clean-person').value = '';
+      document.getElementById('clean-memo').value = '';
+      openModal('cleaning-modal');
+    }
+
+    function registerCleaning() {
+      // 대상 숙소 결정: 드래그 다중선택 or 단일 선택
+      const targetRooms = draggedCleanRooms.length > 0
+        ? draggedCleanRooms
+        : [document.getElementById('clean-room-select').value.replace(' ★', '')];
+
+      if (targetRooms.length === 0 || targetRooms[0] === '선택' || !targetRooms[0]) {
+        alert('숙소를 선택해주세요.'); return;
+      }
+
+      const startStr = document.getElementById('clean-date-start').value;
+      const endStr = document.getElementById('clean-date-end').value;
+      const person = document.getElementById('clean-person').value.trim() || '미정';
+
+      if (!startStr || !endStr) { alert('날짜를 선택해주세요.'); return; }
+
+      const startDate = new Date(startStr + 'T00:00:00');
+      const endDate = new Date(endStr + 'T00:00:00');
+      if (endDate < startDate) { alert('종료일이 시작일보다 앞설 수 없습니다.'); return; }
+
+      let added = 0;
+      for (const room of targetRooms) {
+        const current = new Date(startDate);
+        while (current <= endDate) {
+          const day = current.getDate();
+          const exists = cleaningSchedule.find(c => c.room === room && c.day === day);
+          if (!exists) {
+            cleaningSchedule.push({ room, day, person, done: false });
+            added++;
+          }
+          current.setDate(current.getDate() + 1);
+        }
+      }
+
+      if (added === 0) { alert('해당 기간에 이미 청소 일정이 등록되어 있습니다.'); return; }
+
+      draggedCleanRooms = [];
+      closeModal('cleaning-modal');
+      document.getElementById('clean-person').value = '';
+      document.getElementById('clean-memo').value = '';
+      renderOpsCleaning();
+      renderMonthly();
+      renderWeekly();
+    }
+
+    function deleteCleaning(room, day) {
+      const idx = cleaningSchedule.findIndex(c => c.room === room && c.day === day);
+      if (idx === -1) return;
+      cleaningSchedule.splice(idx, 1);
       renderOpsCleaning();
       renderMonthly();
       renderWeekly();
@@ -1611,13 +1698,41 @@
       }).join('');
     }
 
+    let editingPgmName = null; // null = 추가, string = 수정 (기존 키)
+
+    function addPgm() {
+      editingPgmName = null;
+      document.getElementById('pgm-modal-title').textContent = '프로그램 추가';
+      document.getElementById('pgm-name').value = '';
+      document.getElementById('pgm-short').value = '';
+      document.getElementById('pgm-start').value = '';
+      document.getElementById('pgm-end').value = '';
+      selectedPgmColor = '#93c5fd';
+      document.querySelectorAll('#pgm-color-picker > div').forEach((d, i) => {
+        d.classList.remove('ring-2','ring-offset-1','ring-blue-400');
+        if (i === 0) d.classList.add('ring-2','ring-offset-1','ring-blue-400');
+      });
+      openModal('pgm-modal');
+    }
+
     function editPgm(name) {
       const pgm = pgmColors[name];
       if (!pgm) return;
+      editingPgmName = name;
       document.getElementById('pgm-modal-title').textContent = '프로그램 수정';
       document.getElementById('pgm-name').value = name;
       document.getElementById('pgm-short').value = pgm.label;
-      document.getElementById('pgm-emoji').value = name.split(' ')[0];
+      // 날짜 파싱: schedule "3/16(월)~3/20(금)" → date inputs
+      if (pgm.schedule) {
+        const m = pgm.schedule.match(/(\d+)\/(\d+)\(.+?\)~(\d+)\/(\d+)/);
+        if (m) {
+          document.getElementById('pgm-start').value = `2026-${String(m[1]).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`;
+          document.getElementById('pgm-end').value = `2026-${String(m[3]).padStart(2,'0')}-${String(m[4]).padStart(2,'0')}`;
+        }
+      } else {
+        document.getElementById('pgm-start').value = '';
+        document.getElementById('pgm-end').value = '';
+      }
       selectedPgmColor = pgm.bg;
       document.querySelectorAll('#pgm-color-picker > div').forEach(d => {
         d.classList.remove('ring-2','ring-offset-1','ring-blue-400');
@@ -1626,10 +1741,40 @@
       openModal('pgm-modal');
     }
 
+    function savePgm() {
+      const name = document.getElementById('pgm-name').value.trim();
+      const short = document.getElementById('pgm-short').value.trim();
+      const startDate = document.getElementById('pgm-start').value;
+      const endDate = document.getElementById('pgm-end').value;
+      if (!name || !short) { alert('프로그램명과 약칭을 입력해주세요.'); return; }
+
+      let schedule = '', nights = '';
+      if (startDate && endDate) {
+        const s = new Date(startDate + 'T00:00:00');
+        const e = new Date(endDate + 'T00:00:00');
+        const dow = ['일','월','화','수','목','금','토'];
+        schedule = `${s.getMonth()+1}/${s.getDate()}(${dow[s.getDay()]})~${e.getMonth()+1}/${e.getDate()}(${dow[e.getDay()]})`;
+        const diff = Math.round((e - s) / 86400000);
+        nights = `${diff}박${diff+1}일`;
+      }
+
+      // 수정 모드: 이름 변경 시 기존 키 삭제
+      if (editingPgmName && editingPgmName !== name) {
+        delete pgmColors[editingPgmName];
+      }
+
+      pgmColors[name] = { bg: selectedPgmColor, label: short, schedule, nights };
+      editingPgmName = null;
+      closeModal('pgm-modal');
+      renderPgmList();
+      initReservationForm(); // 예약 폼 드롭다운 갱신
+    }
+
     function deletePgm(name) {
       if (confirm(`"${name}" 프로그램을 삭제하시겠습니까?`)) {
         delete pgmColors[name];
         renderPgmList();
+        initReservationForm();
       }
     }
 
