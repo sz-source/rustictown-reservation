@@ -1089,7 +1089,8 @@
         if (disabled) {
           for (let d = 1; d <= nDays; d++) html += `<td class="cell" data-room="${room.name}" data-day="${d}" style="background:repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 10px,#e5e7eb 10px,#e5e7eb 11px);opacity:0.5"></td>`;
         } else {
-          const cleanSpans = getCleaningSpans(room.name);
+          // 청소 데이터는 3월 전용 — 다른 달에서는 빈 배열
+          const cleanSpans = (calYear === 2026 && calMonth === 3) ? getCleaningSpans(room.name) : [];
           for (let day = 1; day <= nDays; day++) {
             const off = monthOffsetStart + day - 1;
             const res = roomRes.find(r => off >= r.ci && off <= r.co);
@@ -1175,7 +1176,8 @@
         if (disabled) {
           html += `<td class="cell-week" colspan="${wEnd - wStart + 1}" style="background:repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 10px,#e5e7eb 10px,#e5e7eb 11px);opacity:0.5"><div class="text-center text-xs text-gray-400 py-4">사용불가</div></td>`;
         } else {
-          const cleanSpans = getCleaningSpans(room.name);
+          // 청소 데이터는 3월 전용 — 다른 달에서는 빈 배열
+          const cleanSpans = (calYear === 2026 && calMonth === 3) ? getCleaningSpans(room.name) : [];
           for (let day = wStart; day <= wEnd; day++) {
             const off = toDayOffset(calYear, calMonth, day);
             const res = roomRes.find(r => off >= r.ci && off <= r.co);
