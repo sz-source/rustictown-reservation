@@ -639,25 +639,44 @@
     // ========== AUTH ==========
     let currentRole = null; // null | 'admin' | 'cleaning'
     let loggedInAs = null;  // actual login role (admin stays admin even in cleaning view)
-    const accounts = {
-      rustictown: { pw: '102938', role: 'admin' },
-      thankyou: { pw: '1234', role: 'cleaning' },
-    };
 
-    function doLogin() {
+    async function doLogin() {
       const id = document.getElementById('login-id').value.trim();
       const pw = document.getElementById('login-pw').value;
-      const acc = accounts[id];
-      if (acc && acc.pw === pw) {
-        currentRole = acc.role;
-        loggedInAs = acc.role;
-        sessionStorage.setItem('loggedInRole', acc.role);
-        document.getElementById('login-modal').classList.add('hidden');
-        document.getElementById('login-error').classList.add('hidden');
-        applyRole();
-        fetchReservations(); // 로그인 후 서버 데이터 로드
-      } else {
+      const loginBtn = document.querySelector('#login-modal button[onclick="doLogin()"]');
+
+      if (!id || !pw) {
         document.getElementById('login-error').classList.remove('hidden');
+        return;
+      }
+
+      // 로그인 버튼 비활성화 (중복 클릭 방지)
+      if (loginBtn) { loginBtn.disabled = true; loginBtn.textContent = '로그인 중...'; }
+
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, pw })
+        });
+        const data = await res.json();
+
+        if (data.success && data.role) {
+          currentRole = data.role;
+          loggedInAs = data.role;
+          sessionStorage.setItem('loggedInRole', data.role);
+          document.getElementById('login-modal').classList.add('hidden');
+          document.getElementById('login-error').classList.add('hidden');
+          applyRole();
+          fetchReservations(); // 로그인 후 서버 데이터 로드
+        } else {
+          document.getElementById('login-error').classList.remove('hidden');
+        }
+      } catch (err) {
+        console.error('Login error:', err);
+        document.getElementById('login-error').classList.remove('hidden');
+      } finally {
+        if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = '로그인'; }
       }
     }
 
