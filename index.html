@@ -298,7 +298,7 @@
         </div>
         <div class="flex items-center gap-2">
           <span id="drag-hint" class="text-xs text-gray-400 hidden"></span>
-          <button id="btn-new-reservation" class="bg-blue-500 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-600" onclick="openModal('form-modal')">+ 새 예약</button>
+          <button id="btn-new-reservation" class="bg-blue-500 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-600" onclick="openNewReservationForm()">+ 새 예약</button>
         </div>
       </div>
 
@@ -329,7 +329,7 @@
   <div id="page-reservations" class="page hidden max-w-6xl mx-auto p-6">
     <div class="flex items-center justify-between mb-4">
       <h1 class="text-xl font-bold">📋 예약 관리</h1>
-      <button class="bg-blue-500 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-600" onclick="openModal('form-modal')">+ 새 예약</button>
+      <button class="bg-blue-500 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-600" onclick="openNewReservationForm()">+ 새 예약</button>
     </div>
 
     <!-- 입퇴실 예정 -->
@@ -1977,6 +1977,41 @@
       const pgmSel = document.getElementById('form-program');
       roomSel.innerHTML = '<option>선택</option>' + rooms.filter(r => !isRoomDisabled(r.name)).map(r => `<option value="${r.name}">${r.name}${isPremium(r.name) ? ' ★' : ''}</option>`).join('');
       pgmSel.innerHTML = '<option>선택</option>' + Object.keys(pgmColors).map(k => `<option>${k.split(' ')[0]} ${pgmColors[k].label}</option>`).join('');
+    }
+
+    // ========== NEW RESERVATION FORM RESET ==========
+    function openNewReservationForm() {
+      // 개별 등록 탭으로 전환
+      switchFormTab('individual', document.querySelectorAll('#form-modal .border-b button')[0]);
+      // 드래그 정보 배너 초기화
+      const bulkInfo = document.getElementById('bulk-drag-info');
+      if (bulkInfo) bulkInfo.innerHTML = '';
+      // 폼 필드 초기화
+      document.getElementById('form-room').value = '선택';
+      document.getElementById('form-checkin').value = '';
+      document.getElementById('form-checkout').value = '';
+      document.getElementById('form-program').selectedIndex = 0;
+      document.getElementById('form-org').value = '';
+      document.getElementById('form-guest-count').value = '1';
+      // 게스트 입력 영역 초기화
+      const guestArea = document.getElementById('form-guests-area');
+      const firstGuest = document.getElementById('guest-form-1');
+      if (firstGuest) {
+        firstGuest.querySelectorAll('input').forEach(i => { if (i.type === 'text') i.value = ''; });
+        firstGuest.querySelectorAll('input[type=radio]').forEach((r, idx) => r.checked = idx === 0);
+      }
+      if (guestArea) {
+        const extras = guestArea.querySelectorAll('[id^="guest-form-"]:not(#guest-form-1)');
+        extras.forEach(e => e.remove());
+      }
+      // 추가침구 초기화
+      const yo = document.getElementById('form-bedding-yo');
+      const blanket = document.getElementById('form-bedding-blanket');
+      const pillow = document.getElementById('form-bedding-pillow');
+      if (yo) yo.value = '0';
+      if (blanket) blanket.value = '0';
+      if (pillow) pillow.value = '0';
+      openModal('form-modal');
     }
 
     // ========== PROGRAM MANAGEMENT ==========
