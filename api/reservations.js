@@ -137,10 +137,11 @@ export default async function handler(req, res) {
 
     const items = data.data?.boards?.[0]?.items_page?.items || [];
 
-    // 변환 + null 필터링
+    // 변환 + null 필터링 + 환불/취소 제외
     const reservations = items
       .map(transformItem)
-      .filter(r => r !== null);
+      .filter(r => r !== null)
+      .filter(r => r.status !== '환불/취소');
 
     // 캐싱: 60초 CDN 캐시, 5분 stale-while-revalidate
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
