@@ -3,6 +3,13 @@
 
 const BOARD_ID = 18401306495;
 
+// GraphQL 인젝션 방어: 숫자 검증
+function sanitizeInt(val) {
+  const n = parseInt(val, 10);
+  if (isNaN(n) || n <= 0) throw new Error('Invalid ID');
+  return n;
+}
+
 async function mutateMonday(query, token) {
   const res = await fetch('https://api.monday.com/v2', {
     method: 'POST',
@@ -20,9 +27,15 @@ async function mutateMonday(query, token) {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'DELETE') return res.status(405).json({ error: 'Method not allowed' });
+
+  // API 키 인증
+  const apiSecret = process.env.API_SECRET_KEY;
+  if (apiSecret && req.headers['x-api-key'] !== apiSecret) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   const token = process.env.MONDAY_API_TOKEN;
   if (!token) return res.status(500).json({ error: 'MONDAY_API_TOKEN not configured' });
@@ -33,8 +46,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'itemId is required' });
     }
 
+    const safeItemId = sanitizeInt(body.itemId);
+
     const query = `mutation {
-      delete_item(item_id: ${body.itemId}) {
+      delete_item(item_id: ${safeItemId}) {
         id
       }
     }`;

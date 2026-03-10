@@ -853,6 +853,9 @@
     function statusTextColor(status) { return statusColors[status]?.text || '#fff'; }
 
     // Reservations: 서버에서 로드 (폴백: 하드코딩 데이터)
+    // API 인증 키 (Vercel 환경변수 API_SECRET_KEY와 동일한 값 설정)
+    const API_KEY = 'rtsc-2026-simcheong-key';
+
     let reservations = [];
     let reservationsLoaded = false; // API 로드 완료 여부
 
@@ -861,7 +864,9 @@
       const banner = document.getElementById('api-status-banner');
       try {
         if (banner) { banner.textContent = '⏳ 예약 데이터 로딩 중...'; banner.className = 'text-center py-2 bg-blue-50 text-blue-600 text-sm'; banner.classList.remove('hidden'); }
-        const res = await fetch('/api/reservations');
+        const res = await fetch('/api/reservations', {
+          headers: { 'x-api-key': API_KEY }
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.reservations && data.reservations.length > 0) {
@@ -2577,7 +2582,7 @@
       try {
         const res = await fetch('/api/reservations-create', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
           body: JSON.stringify({
             name, room, checkin, checkout, status: '신규',
             program, category, phone, gender: genderLabel,
@@ -2628,7 +2633,7 @@
         try {
           const res = await fetch('/api/reservations-create', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
             body: JSON.stringify({
               name: g.name, room: g.room, checkin, checkout,
               status: '신규', program
@@ -2654,7 +2659,7 @@
       try {
         const res = await fetch('/api/reservations-update', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
           body: JSON.stringify({ itemId, ...updates })
         });
         const data = await res.json();
@@ -2673,7 +2678,7 @@
       try {
         const res = await fetch('/api/reservations-delete', {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
           body: JSON.stringify({ itemId: Number(itemId) })
         });
         const data = await res.json();

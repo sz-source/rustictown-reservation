@@ -3,6 +3,13 @@
 
 const BOARD_ID = 18401306495;
 
+// GraphQL 인젝션 방어: 커서 문자열 검증 (영숫자+기본 특수문자만 허용)
+function sanitizeCursor(cursor) {
+  if (typeof cursor !== 'string') return null;
+  if (!/^[a-zA-Z0-9+/=_\-]+$/.test(cursor)) return null;
+  return cursor;
+}
+
 // 먼데이 GraphQL API 호출
 async function queryMonday(query, token) {
   const res = await fetch('https://api.monday.com/v2', {
@@ -110,8 +117,15 @@ export default async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+  // API 키 인증
+  const apiSecret = process.env.API_SECRET_KEY;
+  if (apiSecret && req.headers['x-api-key'] !== apiSecret) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   const token = process.env.MONDAY_API_TOKEN;
   if (!token) {
@@ -150,8 +164,10 @@ export default async function handler(req, res) {
 
     // 커서가 있으면 다음 페이지 반복 조회 (500건 초과 시)
     while (cursor) {
+      const safeCursor = sanitizeCursor(cursor);
+      if (!safeCursor) break; // 비정상 커서는 중단
       const nextQuery = `query {
-        next_items_page(limit: 500, cursor: "${cursor}") {
+        next_items_page(limit: 500, cursor: "${safeCursor}") {
           cursor
           items {
             id

@@ -4,6 +4,19 @@
 const BOARD_ID = 18401306495;
 const DEFAULT_GROUP = 'group_title'; // "승인 완료" 그룹
 
+// GraphQL 인젝션 방어: 문자열 이스케이프
+function sanitizeStr(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+}
+
+// GraphQL 인젝션 방어: 숫자 검증
+function sanitizeInt(val) {
+  const n = parseInt(val, 10);
+  if (isNaN(n) || n <= 0) throw new Error('Invalid ID');
+  return n;
+}
+
 async function mutateMonday(query, token) {
   const res = await fetch('https://api.monday.com/v2', {
     method: 'POST',
@@ -21,9 +34,15 @@ async function mutateMonday(query, token) {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // API 키 인증
+  const apiSecret = process.env.API_SECRET_KEY;
+  if (apiSecret && req.headers['x-api-key'] !== apiSecret) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   const token = process.env.MONDAY_API_TOKEN;
   if (!token) return res.status(500).json({ error: 'MONDAY_API_TOKEN not configured' });
@@ -82,13 +101,14 @@ export default async function handler(req, res) {
     if (body.insurance) columnValues['color_mm0wz1p8'] = { label: body.insurance };
 
     const columnValuesStr = JSON.stringify(JSON.stringify(columnValues));
-    const groupId = body.groupId || DEFAULT_GROUP;
+    const groupId = sanitizeStr(body.groupId || DEFAULT_GROUP);
+    const safeName = sanitizeStr(body.name);
 
     const query = `mutation {
       create_item(
         board_id: ${BOARD_ID},
         group_id: "${groupId}",
-        item_name: "${body.name.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}",
+        item_name: "${safeName}",
         column_values: ${columnValuesStr}
       ) {
         id
