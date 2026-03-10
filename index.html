@@ -878,6 +878,7 @@
       renderMonthly();
       renderWeekly();
       renderReservationsList();
+      updateDashWithLiveData();
       renderDashView();
       renderOpsAccommodation();
     }
@@ -1509,7 +1510,7 @@
           const clickDay = dragState.startDay;
           const clickRoom = dragState.startRoom;
           const clickOff = toDayOffset(calYear, calMonth, clickDay);
-          const res = reservations.find(r => r.room === clickRoom && clickOff >= r.ci && clickOff < r.co);
+          const res = reservations.find(r => r.room === clickRoom && clickOff >= r.ci && clickOff <= r.co);
           if (res) {
             // Find the bar element (visible start day in current month)
             const monthBase = toDayOffset(calYear, calMonth, 1);
@@ -1625,10 +1626,25 @@
 
       table.addEventListener('touchend', (e) => {
         if (!dragState) return;
-        // mouseup 핸들러 재사용: 가상 이벤트 디스패치
         document.querySelectorAll('.bar, .clean-bar').forEach(b => b.style.pointerEvents = 'auto');
         clearHighlight();
         tooltip.classList.add('hidden');
+
+        // 싱글탭 감지: 기존 예약이면 상세보기 (mouseup 핸들러와 동일)
+        const isSingleTap = dragState.startDay === dragState.currentDay && dragState.startRoom === dragState.currentRoom;
+        if (isSingleTap) {
+          const clickOff = toDayOffset(calYear, calMonth, dragState.startDay);
+          const tapRes = reservations.find(r => r.room === dragState.startRoom && clickOff >= r.ci && clickOff <= r.co);
+          if (tapRes) {
+            const monthBase = toDayOffset(calYear, calMonth, 1);
+            const visStartDay = Math.max(tapRes.ci, monthBase) - monthBase + 1;
+            const ciCell = document.querySelector(`td.cell[data-room="${CSS.escape(dragState.startRoom)}"][data-day="${visStartDay}"]`);
+            const bar = ciCell ? ciCell.querySelector('.bar') : null;
+            dragState = null;
+            if (bar) showDetail(bar);
+            return;
+          }
+        }
 
         const fromDay = Math.min(dragState.startDay, dragState.currentDay);
         const toDay = Math.max(dragState.startDay, dragState.currentDay);
@@ -1709,17 +1725,27 @@
     // ========== RENDER OPERATIONS PAGE ==========
     function renderOpsAccommodation() {
       const tbody = document.getElementById('ops-accommodation-tbody');
-      // Show program 2 data (문장의 방 3/10-3/13) for this week view
-      const weekRes = reservations.filter(r => r.pgm === '🖋️ 다시 앉는 문장의 방');
+      // 현재 캘린더 주간 뷰에 해당하는 예약 동적 표시
+      const nDays = numDaysIn(calYear, calMonth);
+      const wEnd = Math.min(calWeekStart + 6, nDays);
+      const wOffStart = toDayOffset(calYear, calMonth, calWeekStart);
+      const wOffEnd = toDayOffset(calYear, calMonth, wEnd);
+      const weekRes = reservations
+        .filter(r => r.ci <= wOffEnd && r.co >= wOffStart)
+        .sort((a, b) => a.room.localeCompare(b.room));
       let html = '';
       weekRes.forEach((r, i) => {
         const bg = i % 2 === 1 ? ' bg-gray-50' : '';
         const star = isPremium(r.room) ? '<span class="text-amber-500 ml-0.5">&#9733;</span>' : '';
-        const beddingYo = (r.room === '산내음' && r.count === 2) ? '<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs">1장</span>' : '<span class="text-gray-400">-</span>';
-        const beddingSet = (r.room === '산내음' && r.count === 2) ? '<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs">1세트</span>' : '<span class="text-gray-400">-</span>';
+        const bedding = r.extraBedding
+          ? `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs">${r.extraBedding}</span>`
+          : '<span class="text-gray-400">-</span>';
         const pgmDot = `<span class="inline-block w-2 h-2 rounded-full mr-1" style="background:${pgmColor(r.pgm)}"></span>`;
-        html += `<tr class="border-t${bg}"><td class="px-4 py-3 font-medium">${r.room}${star}</td><td class="px-4 py-3 text-sm">${pgmDot}${pgmLabel(r.pgm)}</td><td class="text-center">${r.count}명</td><td class="text-center">${beddingYo}</td><td class="text-center">${beddingSet}</td><td class="text-center text-gray-400">-</td><td class="text-center">${fmtOffset(r.ci)}</td><td class="text-center">${fmtOffset(r.co)}</td></tr>`;
+        html += `<tr class="border-t${bg}"><td class="px-4 py-3 font-medium">${r.room}${star}</td><td class="px-4 py-3 text-sm">${pgmDot}${pgmLabel(r.pgm)}</td><td class="text-center">${r.count}명</td><td class="text-center">${bedding}</td><td class="text-center text-gray-400">-</td><td class="text-center text-gray-400">-</td><td class="text-center">${fmtOffset(r.ci)}</td><td class="text-center">${fmtOffset(r.co)}</td></tr>`;
       });
+      if (weekRes.length === 0) {
+        html = '<tr><td colspan="8" class="text-center py-6 text-gray-400 text-sm">해당 주간에 예약이 없습니다.</td></tr>';
+      }
       tbody.innerHTML = html;
     }
 
@@ -1729,7 +1755,7 @@
       const cleanings = cleaningSchedule
         .slice()
         .sort((a, b) => a.day - b.day || a.room.localeCompare(b.room))
-        .map(c => ({ room: c.room, day: c.day, date: `3/${c.day}`, person: c.person, done: c.done }));
+        .map(c => ({ room: c.room, day: c.day, date: `${calMonth}/${c.day}`, person: c.person, done: c.done }));
 
       let html = '';
       cleanings.forEach((c, i) => {
@@ -2596,10 +2622,33 @@
     // ── 대시보드 통계 뷰 ──
     let dashYear = 2026;
     let dashView = 'monthly';
-    const dashMonthlyData = {
-      2026: {months:[72,85,90,0,0,0,0,0,0,0,0,0], currentMonth:3,
-             gender:{3:{f:61,m:29}}}
-    };
+    const dashMonthlyData = {};
+    // 실제 예약 데이터에서 월별 통계 계산
+    function updateDashWithLiveData() {
+      const stats = {};
+      reservations.forEach(r => {
+        const ciInfo = fromDayOffset(r.ci);
+        const yr = ciInfo.year;
+        const mo = ciInfo.month;
+        if (!stats[yr]) stats[yr] = {};
+        if (!stats[yr][mo]) stats[yr][mo] = { count: 0, m: 0, f: 0 };
+        stats[yr][mo].count++;
+        if ((r.gender || '').includes('남')) stats[yr][mo].m++;
+        else if ((r.gender || '').includes('여')) stats[yr][mo].f++;
+      });
+      for (const [yr, months] of Object.entries(stats)) {
+        const y = +yr;
+        const monthArr = new Array(12).fill(0);
+        const gender = {};
+        const now = new Date();
+        const curMonth = (now.getFullYear() === y) ? now.getMonth() + 1 : null;
+        for (const [mo, val] of Object.entries(months)) {
+          monthArr[+mo - 1] = val.count;
+          gender[+mo] = { f: val.f, m: val.m };
+        }
+        dashMonthlyData[y] = { months: monthArr, currentMonth: curMonth, gender };
+      }
+    }
     function getDashData(yr){
       return dashMonthlyData[yr] || {months:[0,0,0,0,0,0,0,0,0,0,0,0], currentMonth:null, gender:{}};
     }
