@@ -98,7 +98,7 @@
     <div class="mb-6">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg font-semibold">🧹 이번 주 청소 일정</h2>
-        <button class="bg-emerald-500 text-white px-4 py-1.5 rounded text-sm hover:bg-emerald-600" onclick="openModal('cleaning-modal')">+ 청소 일정 등록</button>
+        <button id="btn-add-cleaning" class="bg-emerald-500 text-white px-4 py-1.5 rounded text-sm hover:bg-emerald-600" onclick="openModal('cleaning-modal')">+ 청소 일정 등록</button>
       </div>
       <div class="bg-white rounded-lg border overflow-hidden">
         <table class="w-full text-sm">
@@ -601,8 +601,23 @@
       const newResBtn = document.getElementById('btn-new-reservation');
       if (newResBtn) newResBtn.classList.toggle('hidden', isClean);
 
-      // Drag hint text (admin: 예약 등록, cleaning: 청소 일정 등록)
-      // drag-hint removed from UI
+      // Drag hint text (역할별 분기)
+      const dragHint = document.getElementById('drag-hint');
+      if (dragHint) {
+        if (isAdmin) {
+          dragHint.textContent = '📝 빈 셀 드래그 → 예약 등록';
+          dragHint.classList.remove('hidden');
+        } else if (isClean) {
+          dragHint.textContent = '🧹 빈 셀 드래그 → 청소 일정 등록 (여러 숙소 선택 가능)';
+          dragHint.classList.remove('hidden');
+        } else {
+          dragHint.classList.add('hidden');
+        }
+      }
+
+      // "청소 일정 등록" 버튼: 관리자는 숨김 (캘린더 드래그 또는 "새 예약" 버튼 사용)
+      const addCleanBtn = document.getElementById('btn-add-cleaning');
+      if (addCleanBtn) addCleanBtn.classList.toggle('hidden', isAdmin);
 
       // Re-render calendars
       if (loggedIn) {
