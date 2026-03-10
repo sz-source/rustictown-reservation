@@ -18,26 +18,35 @@ async function queryMonday(query, token) {
   return res.json();
 }
 
-// 타임라인 문자열 → ci/co (3월 기준 day-of-month) 변환
-function parseTimeline(timelineStr, baseMonth = 3) {
+// 타임라인 문자열 → ci/co day offset 변환 (March 1, 2026 기준)
+// 프론트엔드의 toDayOffset()과 동일한 로직
+function parseTimeline(timelineStr) {
   if (!timelineStr) return { ci: null, co: null };
   const parts = timelineStr.split(' - ');
   if (parts.length !== 2) return { ci: null, co: null };
 
   const [startStr, endStr] = parts;
-  const start = new Date(startStr + 'T00:00:00+09:00'); // KST
-  const end = new Date(endStr + 'T00:00:00+09:00');
 
-  function toDay(d) {
-    const month = d.getMonth() + 1; // 1-indexed
-    const day = d.getDate();
-    if (month === baseMonth) return day;
-    if (month === baseMonth + 1) return day + 31;
-    if (month === baseMonth - 1) return -(31 - day); // 이전 달
-    return day;
+  // 날짜 문자열에서 직접 숫자 추출 (서버 타임존 무관하게 안전)
+  function parseDateStr(str) {
+    const [y, m, d] = str.trim().split('-').map(Number);
+    return { year: y, month: m, day: d };
   }
 
-  return { ci: toDay(start), co: toDay(end) };
+  // March 1, 2026 기준 day offset (프론트엔드와 동일)
+  function toDayOffset(y, m, d) {
+    const base = new Date(Date.UTC(2026, 2, 1)); // March 1, 2026
+    const target = new Date(Date.UTC(y, m - 1, d));
+    return Math.round((target - base) / 86400000) + 1;
+  }
+
+  const s = parseDateStr(startStr);
+  const e = parseDateStr(endStr);
+
+  return {
+    ci: toDayOffset(s.year, s.month, s.day),
+    co: toDayOffset(e.year, e.month, e.day)
+  };
 }
 
 // 상태명 공백 제거 (먼데이: "예약 승인 안내" → 프론트: "예약승인안내")
