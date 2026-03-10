@@ -266,6 +266,7 @@
         <div class="flex gap-2 pt-2">
           <button class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded hover:bg-gray-200 text-sm" onclick="closeModal('cleaning-modal')">취소</button>
           <button id="clean-bulk-done-btn" class="hidden flex-1 bg-blue-500 text-white py-2.5 rounded hover:bg-blue-600 text-sm font-medium" onclick="bulkCompleteCleaning()">일괄 완료</button>
+          <button id="clean-bulk-pending-btn" class="hidden flex-1 bg-amber-500 text-white py-2.5 rounded hover:bg-amber-600 text-sm font-medium" onclick="bulkPendingCleaning()">일괄 예정</button>
           <button id="clean-bulk-delete-btn" class="hidden flex-1 bg-red-500 text-white py-2.5 rounded hover:bg-red-600 text-sm font-medium" onclick="bulkDeleteCleaning()">일괄 삭제</button>
           <button id="clean-register-btn" class="flex-1 bg-emerald-500 text-white py-2.5 rounded hover:bg-emerald-600 text-sm font-medium" onclick="registerCleaning()">등록</button>
         </div>
@@ -1840,6 +1841,8 @@
       const infoEl = document.getElementById('clean-bulk-info');
       const deleteBtn = document.getElementById('clean-bulk-delete-btn');
       const doneBtn = document.getElementById('clean-bulk-done-btn');
+      const pendingBtn = document.getElementById('clean-bulk-pending-btn');
+      const registerBtn = document.getElementById('clean-register-btn');
       const countEl = document.getElementById('clean-bulk-count');
       const pendingEl = document.getElementById('clean-bulk-pending');
       const doneEl = document.getElementById('clean-bulk-done');
@@ -1852,23 +1855,47 @@
         if (doneEl) doneEl.textContent = doneCount;
         if (infoEl) infoEl.classList.remove('hidden');
         if (deleteBtn) deleteBtn.classList.remove('hidden');
+        // 기존 일정이 있으면 등록 버튼 숨김
+        if (registerBtn) registerBtn.classList.add('hidden');
         // 예정 건이 있을 때만 '일괄 완료' 표시
         if (doneBtn) doneBtn.classList.toggle('hidden', pendingCount === 0);
+        // 완료 건이 있을 때만 '일괄 예정' 표시
+        if (pendingBtn) pendingBtn.classList.toggle('hidden', doneCount === 0);
       } else {
         _cleanDragExisting = [];
         if (infoEl) infoEl.classList.add('hidden');
         if (deleteBtn) deleteBtn.classList.add('hidden');
         if (doneBtn) doneBtn.classList.add('hidden');
+        if (pendingBtn) pendingBtn.classList.add('hidden');
+        // 기존 일정 없으면 등록 버튼 표시
+        if (registerBtn) registerBtn.classList.remove('hidden');
       }
     }
 
     function bulkCompleteCleaning() {
       const pending = _cleanDragExisting.filter(c => !c.done);
       if (pending.length === 0) return;
-      if (!confirm(`${pending.length}건의 청소 일정을 완료 처리하시겠습니까?`)) return;
+      if (!confirm(`${pending.length}건을 완료 처리하시겠습니까?`)) return;
       for (const item of pending) {
         const entry = cleaningSchedule.find(c => c.room === item.room && c.day === item.day);
         if (entry) entry.done = true;
+      }
+      saveCleaningToStorage();
+      _cleanDragExisting = [];
+      draggedCleanRooms = [];
+      closeModal('cleaning-modal');
+      renderOpsCleaning();
+      renderMonthly();
+      renderWeekly();
+    }
+
+    function bulkPendingCleaning() {
+      const done = _cleanDragExisting.filter(c => c.done);
+      if (done.length === 0) return;
+      if (!confirm(`${done.length}건을 예정으로 되돌리시겠습니까?`)) return;
+      for (const item of done) {
+        const entry = cleaningSchedule.find(c => c.room === item.room && c.day === item.day);
+        if (entry) entry.done = false;
       }
       saveCleaningToStorage();
       _cleanDragExisting = [];
