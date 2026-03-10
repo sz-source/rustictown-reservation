@@ -258,13 +258,14 @@
         </div>
         <div><label class="block text-sm text-gray-600 mb-1">담당자</label><input id="clean-person" type="text" class="border rounded w-full px-3 py-2 text-sm" placeholder="담당자 이름"></div>
         <div><label class="block text-sm text-gray-600 mb-1">메모</label><textarea id="clean-memo" class="border rounded w-full px-3 py-2 text-sm h-16" placeholder="특이사항 (추가침구 등)"></textarea></div>
-        <div id="clean-bulk-delete-info" class="hidden">
-          <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
-            🗑️ 선택 범위 내 <strong id="clean-bulk-count">0</strong>건의 청소 일정이 있습니다.
+        <div id="clean-bulk-info" class="hidden">
+          <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+            📋 선택 범위 내 <strong id="clean-bulk-count">0</strong>건 — 🧹 예정 <strong id="clean-bulk-pending">0</strong>건 · ✅ 완료 <strong id="clean-bulk-done">0</strong>건
           </div>
         </div>
         <div class="flex gap-2 pt-2">
           <button class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded hover:bg-gray-200 text-sm" onclick="closeModal('cleaning-modal')">취소</button>
+          <button id="clean-bulk-done-btn" class="hidden flex-1 bg-blue-500 text-white py-2.5 rounded hover:bg-blue-600 text-sm font-medium" onclick="bulkCompleteCleaning()">일괄 완료</button>
           <button id="clean-bulk-delete-btn" class="hidden flex-1 bg-red-500 text-white py-2.5 rounded hover:bg-red-600 text-sm font-medium" onclick="bulkDeleteCleaning()">일괄 삭제</button>
           <button id="clean-register-btn" class="flex-1 bg-emerald-500 text-white py-2.5 rounded hover:bg-emerald-600 text-sm font-medium" onclick="registerCleaning()">등록</button>
         </div>
@@ -1793,19 +1794,46 @@
 
     // 청소 모달에서 일괄삭제 버튼 표시/숨김 업데이트
     function updateCleanModalButtons(existingItems) {
-      const deleteInfo = document.getElementById('clean-bulk-delete-info');
+      const infoEl = document.getElementById('clean-bulk-info');
       const deleteBtn = document.getElementById('clean-bulk-delete-btn');
+      const doneBtn = document.getElementById('clean-bulk-done-btn');
       const countEl = document.getElementById('clean-bulk-count');
+      const pendingEl = document.getElementById('clean-bulk-pending');
+      const doneEl = document.getElementById('clean-bulk-done');
       if (existingItems.length > 0) {
         _cleanDragExisting = existingItems;
+        const pendingCount = existingItems.filter(c => !c.done).length;
+        const doneCount = existingItems.filter(c => c.done).length;
         if (countEl) countEl.textContent = existingItems.length;
-        if (deleteInfo) deleteInfo.classList.remove('hidden');
+        if (pendingEl) pendingEl.textContent = pendingCount;
+        if (doneEl) doneEl.textContent = doneCount;
+        if (infoEl) infoEl.classList.remove('hidden');
         if (deleteBtn) deleteBtn.classList.remove('hidden');
+        // 예정 건이 있을 때만 '일괄 완료' 표시
+        if (doneBtn) doneBtn.classList.toggle('hidden', pendingCount === 0);
       } else {
         _cleanDragExisting = [];
-        if (deleteInfo) deleteInfo.classList.add('hidden');
+        if (infoEl) infoEl.classList.add('hidden');
         if (deleteBtn) deleteBtn.classList.add('hidden');
+        if (doneBtn) doneBtn.classList.add('hidden');
       }
+    }
+
+    function bulkCompleteCleaning() {
+      const pending = _cleanDragExisting.filter(c => !c.done);
+      if (pending.length === 0) return;
+      if (!confirm(`${pending.length}건의 청소 일정을 완료 처리하시겠습니까?`)) return;
+      for (const item of pending) {
+        const entry = cleaningSchedule.find(c => c.room === item.room && c.day === item.day);
+        if (entry) entry.done = true;
+      }
+      saveCleaningToStorage();
+      _cleanDragExisting = [];
+      draggedCleanRooms = [];
+      closeModal('cleaning-modal');
+      renderOpsCleaning();
+      renderMonthly();
+      renderWeekly();
     }
 
     // ========== POPULATE FORM SELECTS ==========
