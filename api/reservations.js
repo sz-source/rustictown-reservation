@@ -110,8 +110,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 전체 아이템 조회 (최대 500건, 보드 98건이므로 1회 호출로 충분)
-    const query = `query {
+    // 1차 조회 (최대 500건)
+    const firstQuery = `query {
       boards(ids: [${BOARD_ID}]) {
         items_page(limit: 500) {
           cursor
@@ -128,14 +128,39 @@ export default async function handler(req, res) {
       }
     }`;
 
-    const data = await queryMonday(query, token);
+    const data = await queryMonday(firstQuery, token);
 
     if (data.errors) {
       console.error('Monday API errors:', data.errors);
       return res.status(500).json({ error: 'Monday API query failed', details: data.errors });
     }
 
-    const items = data.data?.boards?.[0]?.items_page?.items || [];
+    const itemsPage = data.data?.boards?.[0]?.items_page;
+    const items = [...(itemsPage?.items || [])];
+    let cursor = itemsPage?.cursor;
+
+    // 커서가 있으면 다음 페이지 반복 조회 (500건 초과 시)
+    while (cursor) {
+      const nextQuery = `query {
+        next_items_page(limit: 500, cursor: "${cursor}") {
+          cursor
+          items {
+            id
+            name
+            group { id title }
+            column_values {
+              id
+              text
+            }
+          }
+        }
+      }`;
+      const nextData = await queryMonday(nextQuery, token);
+      if (nextData.errors) break;
+      const nextPage = nextData.data?.next_items_page;
+      if (nextPage?.items) items.push(...nextPage.items);
+      cursor = nextPage?.cursor || null;
+    }
 
     // 변환 + null 필터링 + 환불/취소 제외
     const reservations = items
