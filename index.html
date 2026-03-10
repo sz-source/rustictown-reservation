@@ -1308,6 +1308,7 @@
         const guestListHtml = res.guests && res.guests.length > 1
           ? `<div class="flex items-start"><span class="text-gray-500 w-20">게스트</span><div>${res.guests.map((g, i) => `<div class="${i === 0 ? 'font-medium' : ''}">${g.guest} (${g.count}명)${i === 0 ? ' <span class="text-xs text-blue-500">대표</span>' : ''}</div>`).join('')}</div></div>`
           : `<div class="flex"><span class="text-gray-500 w-20">이름</span><span class="font-medium">${res.guest}</span></div>`;
+        const deleteBtn = res.id ? `<div class="pt-3 mt-3 border-t"><button class="w-full py-2 text-sm text-red-500 hover:bg-red-50 rounded border border-red-200 font-medium" onclick="deleteReservationConfirm('${res.id}', '${(res.guest || '').replace(/'/g, "\\'")}')">🗑️ 예약 삭제</button></div>` : '';
         document.getElementById('detail-content').innerHTML = `
           ${guestListHtml}
           <div class="flex"><span class="text-gray-500 w-20">숙소</span><span>${res.room}</span></div>
@@ -1316,6 +1317,7 @@
           <div class="flex"><span class="text-gray-500 w-20">프로그램</span><span>${res.pgm}</span></div>
           <div class="flex"><span class="text-gray-500 w-20">상태</span><span><span class="px-2 py-0.5 rounded text-xs" style="background:${statusColor(res.status)};color:${statusTextColor(res.status)}">${res.status}</span></span></div>
           ${beddingHtml}
+          ${deleteBtn}
         `;
       }
       openModal('detail-modal');
@@ -2280,6 +2282,25 @@
       } catch (err) {
         alert('❌ 수정 실패: ' + err.message);
         return false;
+      }
+    }
+
+    // ========== API: 예약 삭제 ==========
+    async function deleteReservationConfirm(itemId, guestName) {
+      if (!confirm(`정말 "${guestName}" 예약을 삭제하시겠습니까?\n먼데이 보드에서도 삭제됩니다.`)) return;
+      try {
+        const res = await fetch('/api/reservations-delete', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ itemId: Number(itemId) })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || '삭제 실패');
+        alert(`✅ ${guestName}님 예약이 삭제되었습니다.`);
+        closeModal('detail-modal');
+        await fetchReservations();
+      } catch (err) {
+        alert('❌ 삭제 실패: ' + err.message);
       }
     }
 
