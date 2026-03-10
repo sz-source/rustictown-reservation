@@ -551,7 +551,7 @@
         <!-- 예약 정보 -->
         <div class="grid grid-cols-2 gap-3">
           <div><label class="block text-sm text-gray-600 mb-1">숙소 *</label><select id="form-room" class="border rounded w-full px-3 py-2 text-sm bg-white"></select></div>
-          <div><label class="block text-sm text-gray-600 mb-1">프로그램</label><select id="form-program" class="border rounded w-full px-3 py-2 text-sm bg-white"></select></div>
+          <div><label class="block text-sm text-gray-600 mb-1">프로그램</label><select id="form-program" class="border rounded w-full px-3 py-2 text-sm bg-white" onchange="onProgramSelect()"></select></div>
         </div>
         <div><label class="block text-sm text-gray-600 mb-1">구성</label><select id="form-category" class="border rounded w-full px-3 py-2 text-sm bg-white"><option>B2C 포레스트캠프</option><option>B2B 러케이션</option><option>기타</option></select></div>
         <div class="grid grid-cols-2 gap-3">
@@ -576,7 +576,7 @@
         <div id="bulk-drag-info"></div>
         <div class="bg-blue-50 rounded-lg p-4 space-y-3">
           <div class="text-sm font-medium text-blue-700 mb-1">공통 정보</div>
-          <div><label class="block text-sm text-gray-600 mb-1">프로그램 *</label><select id="bulk-program" class="border rounded w-full px-3 py-2 text-sm bg-white"></select></div>
+          <div><label class="block text-sm text-gray-600 mb-1">프로그램 *</label><select id="bulk-program" class="border rounded w-full px-3 py-2 text-sm bg-white" onchange="onBulkProgramSelect()"></select></div>
           <div class="grid grid-cols-2 gap-3">
             <div><label class="block text-sm text-gray-600 mb-1">입실일 *</label><input id="bulk-checkin" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-16"></div>
             <div><label class="block text-sm text-gray-600 mb-1">퇴실일 *</label><input id="bulk-checkout" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-19"></div>
@@ -1988,7 +1988,24 @@
       const roomSel = document.getElementById('form-room');
       const pgmSel = document.getElementById('form-program');
       roomSel.innerHTML = '<option>선택</option>' + rooms.filter(r => !isRoomDisabled(r.name)).map(r => `<option value="${r.name}">${r.name}${isPremium(r.name) ? ' ★' : ''}</option>`).join('');
-      pgmSel.innerHTML = '<option>선택</option>' + Object.keys(pgmColors).map(k => `<option>${k.split(' ')[0]} ${pgmColors[k].label}</option>`).join('');
+      pgmSel.innerHTML = '<option value="">선택</option>' + Object.keys(pgmColors).map(k => `<option value="${k}">${k.split(' ')[0]} ${pgmColors[k].label}</option>`).join('');
+    }
+
+    // 프로그램 선택 시 입퇴실일 자동 입력
+    function onProgramSelect() {
+      const key = document.getElementById('form-program').value;
+      if (!key || !pgmColors[key]) return;
+      const schedule = pgmColors[key].schedule;
+      if (!schedule) return;
+      // "3/16(월)~3/20(금)" 또는 "4/6(월)~4/9(목)" 형태 파싱
+      const m = schedule.match(/(\d+)\/(\d+)\([^)]*\)~(\d+)\/(\d+)/);
+      if (!m) return;
+      const [, sm, sd, em, ed] = m.map(Number);
+      const y = calYear || new Date().getFullYear();
+      const ci = `${y}-${String(sm).padStart(2,'0')}-${String(sd).padStart(2,'0')}`;
+      const co = `${y}-${String(em).padStart(2,'0')}-${String(ed).padStart(2,'0')}`;
+      document.getElementById('form-checkin').value = ci;
+      document.getElementById('form-checkout').value = co;
     }
 
     // ========== NEW RESERVATION FORM RESET ==========
@@ -2717,7 +2734,19 @@
     function populateBulkProgram() {
       const sel = document.getElementById('bulk-program');
       if (!sel) return;
-      sel.innerHTML = '<option value="">선택</option>' + Object.keys(pgmColors).map(k => `<option>${k.split(' ')[0]} ${pgmColors[k].label}</option>`).join('');
+      sel.innerHTML = '<option value="">선택</option>' + Object.keys(pgmColors).map(k => `<option value="${k}">${k.split(' ')[0]} ${pgmColors[k].label}</option>`).join('');
+    }
+    function onBulkProgramSelect() {
+      const key = document.getElementById('bulk-program').value;
+      if (!key || !pgmColors[key]) return;
+      const schedule = pgmColors[key].schedule;
+      if (!schedule) return;
+      const m = schedule.match(/(\d+)\/(\d+)\([^)]*\)~(\d+)\/(\d+)/);
+      if (!m) return;
+      const [, sm, sd, em, ed] = m.map(Number);
+      const y = calYear || new Date().getFullYear();
+      document.getElementById('bulk-checkin').value = `${y}-${String(sm).padStart(2,'0')}-${String(sd).padStart(2,'0')}`;
+      document.getElementById('bulk-checkout').value = `${y}-${String(em).padStart(2,'0')}-${String(ed).padStart(2,'0')}`;
     }
 
     // ── 게스트 폼 동적 생성 ──
