@@ -231,7 +231,7 @@
   </div>
 
   <!-- ==================== Modal: 청소 일정 등록 ==================== -->
-  <div id="cleaning-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4" onclick="if(event.target===this)closeModal('cleaning-modal')">
+  <div id="cleaning-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4" onclick="tryCloseModal('cleaning-modal',event)">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-md" onclick="event.stopPropagation()">
       <div class="flex items-center justify-between p-5 border-b">
         <h2 class="text-lg font-bold">청소 일정 등록</h2>
@@ -468,7 +468,7 @@
   </div>
 
   <!-- Logout Confirmation Modal -->
-  <div id="logout-confirm-modal" class="fixed inset-0 modal-overlay z-[70] hidden flex items-center justify-center p-4" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div id="logout-confirm-modal" class="fixed inset-0 modal-overlay z-[70] hidden flex items-center justify-center p-4" onclick="if(event.target===this&&Date.now()-_modalOpenedAt>400)this.classList.add('hidden')">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-xs p-6 text-center" onclick="event.stopPropagation()">
       <div class="text-3xl mb-3">👋</div>
       <h3 class="font-bold text-lg mb-1">로그아웃</h3>
@@ -481,7 +481,7 @@
   </div>
 
   <!-- ==================== Modal: 예약 상세 ==================== -->
-  <div id="detail-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4" onclick="if(event.target===this)closeModal('detail-modal')">
+  <div id="detail-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4" onclick="tryCloseModal('detail-modal',event)">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-md" onclick="event.stopPropagation()">
       <div class="flex items-center justify-between p-5 border-b">
         <h2 class="text-lg font-bold">예약 상세</h2>
@@ -492,7 +492,7 @@
   </div>
 
   <!-- ==================== Modal: 예약 등록 폼 ==================== -->
-  <div id="form-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4" onclick="if(event.target===this)closeModal('form-modal')">
+  <div id="form-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4" onclick="tryCloseModal('form-modal',event)">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
       <div class="flex items-center justify-between p-5 border-b sticky top-0 bg-white z-10">
         <h2 class="text-lg font-bold">새 예약 등록</h2>
@@ -576,7 +576,7 @@
   </div>
 
   <!-- ==================== Modal: 프로그램 관리 ==================== -->
-  <div id="pgm-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4" onclick="if(event.target===this)closeModal('pgm-modal')">
+  <div id="pgm-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4" onclick="tryCloseModal('pgm-modal',event)">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-md" onclick="event.stopPropagation()">
       <div class="flex items-center justify-between p-5 border-b">
         <h2 class="text-lg font-bold" id="pgm-modal-title">프로그램 추가</h2>
@@ -1683,10 +1683,17 @@
 
     function renderPgmList() {
       const container = document.getElementById('pgm-list');
-      const pgms = Object.entries(pgmColors);
+      const pgms = Object.entries(pgmColors).sort((a, b) => {
+        // 일정 순서대로 정렬 (schedule의 시작 월/일 기준)
+        const parseDate = (s) => {
+          if (!s) return 9999;
+          const m = s.match(/(\d+)\/(\d+)/);
+          return m ? parseInt(m[1]) * 100 + parseInt(m[2]) : 9999;
+        };
+        return parseDate(a[1].schedule) - parseDate(b[1].schedule);
+      });
       if (pgms.length === 0) { container.innerHTML = '<p class="text-gray-400 text-sm">등록된 프로그램이 없습니다.</p>'; return; }
       container.innerHTML = pgms.map(([key, val]) => {
-        const emoji = key.split(' ')[0];
         const fullName = key;
         const scheduleInfo = val.schedule ? `<span class="text-xs text-gray-500">${val.schedule} · ${val.nights}</span>` : '';
         return `<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -1935,8 +1942,10 @@
       }
     }
 
-    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    let _modalOpenedAt = 0;
+    function openModal(id) { _modalOpenedAt = Date.now(); document.getElementById(id).classList.remove('hidden'); }
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    function tryCloseModal(id, evt) { if (evt.target === evt.currentTarget && Date.now() - _modalOpenedAt > 400) closeModal(id); }
 
     // ========== CLEANING GUIDE ACCORDION ==========
     const cleanGuideData = [
