@@ -1455,8 +1455,11 @@
     let multiSelectMode = false; // 모바일 토글용
     const tooltip = document.getElementById('drag-tooltip');
     const roomNames = rooms.map(r => r.name);
+    let _dragSetupDone = false; // setupDrag 중복 등록 방지
 
     function setupDrag() {
+      if (_dragSetupDone) return;
+      _dragSetupDone = true;
       const table = document.getElementById('monthly-table');
       // Helper: find the actual td.cell under a mouse position
       function getCellAt(x, y) {
@@ -1484,7 +1487,8 @@
         dragState = {
           startRoom: roomName, currentRoom: roomName,
           startDay: day, currentDay: day,
-          startY: e.clientY
+          startY: e.clientY,
+          isMultiKey: isMultiKey  // mousedown 시점의 modifier 키 저장
         };
         highlightCells();
       });
@@ -1550,7 +1554,8 @@
         }
 
         // Ctrl/Cmd 또는 모바일 다중선택 모드: 선택만 저장, 모달 열지 않음
-        const isMultiKey = e.ctrlKey || e.metaKey || multiSelectMode;
+        // mousedown 시점에 저장한 modifier 키 상태를 사용 (mouseup 시 e.metaKey가 달라질 수 있음)
+        const isMultiKey = (dragState && dragState.isMultiKey) || multiSelectMode;
         if (isMultiKey && currentRole === 'admin') {
           multiSelections.push({
             startRoom: roomNames[fromRoom],
@@ -1624,9 +1629,12 @@
     }
 
     // ========== TOUCH EVENTS (모바일 캘린더 드래그) ==========
+    let _touchSetupDone = false; // setupTouch 중복 등록 방지
     function setupTouch() {
       const table = document.getElementById('monthly-table');
       if (!table) return;
+      if (_touchSetupDone) return;
+      _touchSetupDone = true;
 
       function getCellAt(x, y) {
         const el = document.elementFromPoint(x, y);
