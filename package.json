@@ -1,5 +1,6 @@
 {
   "name": "rustictown-reservation",
+  "type": "module",
   "private": true,
   "engines": {
     "node": ">=18"
