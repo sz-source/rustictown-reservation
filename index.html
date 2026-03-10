@@ -823,6 +823,15 @@
       }
       return null;
     }
+    function _findPgmKey(pgm) {
+      if (!pgm) return '';
+      if (pgmColors[pgm]) return pgm; // 정확 매칭
+      const n = _strip(pgm);
+      for (const [kw, key] of pgmKeywordMap) {
+        if (n.includes(kw)) return key;
+      }
+      return '';
+    }
     function pgmColor(pgm) { return _findPgm(pgm)?.bg || '#60a5fa'; }
     function pgmLabel(pgm) { return _findPgm(pgm)?.label || pgm; }
     function isCompleted(status) { return status === '퇴실완료'; }
@@ -1323,11 +1332,12 @@
         // 숙소 드롭다운
         const roomOpts = rooms.filter(r => !isRoomDisabled(r.name)).map(r => `<option value="${r.name}" ${r.name === res.room ? 'selected' : ''}>${r.name}${isPremium(r.name) ? ' ★' : ''}</option>`).join('');
 
-        // 프로그램 드롭다운
+        // 프로그램 드롭다운 (키워드 기반 퍼지 매칭)
         const pgmKeys = Object.keys(pgmColors);
+        const matchedPgmKey = _findPgmKey(res.pgm);
         const pgmOpts = '<option value="">미지정</option>' + pgmKeys.map(k => {
           const label = `${k.split(' ')[0]} ${pgmColors[k].label}`;
-          const selected = res.pgm && res.pgm === k ? 'selected' : '';
+          const selected = matchedPgmKey === k ? 'selected' : '';
           return `<option value="${k}" ${selected}>${label}</option>`;
         }).join('');
 
@@ -1372,8 +1382,8 @@
               <span class="text-gray-500 text-sm w-20 shrink-0">성별</span>
               <select id="detail-edit-gender" class="flex-1 border rounded px-2 py-1.5 text-sm bg-white">
                 <option value="">미지정</option>
-                <option value="남" ${res.gender === '남' ? 'selected' : ''}>남</option>
-                <option value="여" ${res.gender === '여' ? 'selected' : ''}>여</option>
+                <option value="남" ${(res.gender || '').includes('남') ? 'selected' : ''}>남</option>
+                <option value="여" ${(res.gender || '').includes('여') ? 'selected' : ''}>여</option>
               </select>
             </div>
             <div class="flex items-center gap-2">
@@ -1418,9 +1428,11 @@
         updates.checkout = newCo;
       }
 
-      if (newPgm !== (_detailRes.pgm || '')) updates.program = newPgm;
+      const origPgmKey = _findPgmKey(_detailRes.pgm);
+      if (newPgm !== origPgmKey) updates.program = newPgm;
       if (newPhone !== (_detailRes.phone || '')) updates.phone = newPhone;
-      if (newGender !== (_detailRes.gender || '')) updates.gender = newGender;
+      const origGender = (_detailRes.gender || '').includes('남') ? '남' : (_detailRes.gender || '').includes('여') ? '여' : '';
+      if (newGender !== origGender) updates.gender = newGender;
       if (newOrg !== (_detailRes.org || '')) updates.org = newOrg;
 
       if (Object.keys(updates).length === 0) { alert('변경된 항목이 없습니다.'); return; }
