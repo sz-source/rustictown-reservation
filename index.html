@@ -2931,6 +2931,30 @@
       }
     });
 
+    // Ctrl/Cmd 키 뗐을 때: 저장된 다중 선택이 있으면 → 폼 열기
+    document.addEventListener('keyup', (e) => {
+      if ((e.key === 'Control' || e.key === 'Meta') && multiSelections.length > 0 && !dragState && currentRole === 'admin') {
+        const allSelections = [...multiSelections];
+        if (allSelections.length > 1 || (allSelections.length === 1 && allSelections[0].selectedRooms.length > 1)) {
+          switchFormTab('bulk', document.querySelectorAll('#form-tabs button')[1]);
+          populateBulkProgram();
+          fillBulkFromMultiSelections(allSelections);
+          const bulkInfo = document.getElementById('bulk-drag-info');
+          const totalRooms = allSelections.reduce((s, sel) => s + sel.selectedRooms.length, 0);
+          if (bulkInfo) bulkInfo.innerHTML = `<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700 mb-3">📝 ${allSelections.length}개 영역, 총 <strong>${totalRooms}</strong>건 선택됨</div>`;
+        } else {
+          const sel = allSelections[0];
+          document.getElementById('form-room').value = sel.selectedRooms[0];
+          document.getElementById('form-checkin').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(sel.startDay).padStart(2,'0')}`;
+          document.getElementById('form-checkout').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(sel.endDay).padStart(2,'0')}`;
+        }
+        openModal('form-modal');
+        multiSelections = [];
+        updateMultiSelectBadge();
+        clearHighlight();
+      }
+    });
+
     // 모바일 다중선택 토글
     function toggleMultiSelectMode(btn) {
       multiSelectMode = !multiSelectMode;
