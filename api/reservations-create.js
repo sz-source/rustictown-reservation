@@ -53,9 +53,12 @@ export default async function handler(req, res) {
       columnValues['status'] = { label: body.category };
     }
 
-    // 전화번호
+    // 전화번호 (숫자만 추출, 유효한 경우만 설정)
     if (body.phone) {
-      columnValues['phone_mkzkr93j'] = { phone: body.phone, countryShortName: 'KR' };
+      const digits = body.phone.replace(/\D/g, '');
+      if (digits.length >= 8) {
+        columnValues['phone_mkzkr93j'] = { phone: digits, countryShortName: 'KR' };
+      }
     }
 
     // 성별

@@ -2435,7 +2435,10 @@
           })
         });
         const data = await res.json();
-        if (!res.ok || !data.success) throw new Error(data.error || '저장 실패');
+        if (!res.ok || !data.success) {
+          const detail = data.details ? '\n' + JSON.stringify(data.details[0]?.message || data.details) : '';
+          throw new Error((data.error || '저장 실패') + detail);
+        }
         alert(`✅ ${name}님 예약이 등록되었습니다.`);
         closeModal('form-modal');
         await fetchReservations(); // 데이터 새로고침
