@@ -773,8 +773,36 @@
       '📋 기획서 찢고 나온 기획자': { bg: '#e879f9', label: '기획자', schedule: '5/12(화)~5/15(금)', nights: '3박4일' },
       '🤖 AI특화 포캠2': { bg: '#60a5fa', label: 'AI포캠2', schedule: '5/17(일)~5/21(목)', nights: '4박5일' },
     };
-    function pgmColor(pgm) { return pgmColors[pgm]?.bg || '#60a5fa'; }
-    function pgmLabel(pgm) { return pgmColors[pgm]?.label || pgm; }
+    // 키워드 기반 프로그램 매칭 (API 데이터와 pgmColors 키 불일치 해소)
+    const pgmKeywordMap = [
+      ['다람쥐', '🐿️ 앗! 도시의 다람쥐가'],
+      ['문장의방', '🖋️ 다시 앉는 문장의 방'],
+      ['빌드하다', '🧩 빌드하다 길 잃음'],
+      ['같은곳', '✨ 같은 곳 다른 리듬'],
+      ['내일말고', '🌲 내일말고지금'],
+      ['출근합니다', '🏕️ 내일은 숲으로 출근합니다'],
+      ['캐시삭제', '🧘 나를 위한 캐시 삭제'],
+      ['todolist', '☕ To-Do List는 잠시 휴식 중'],
+      ['휴식중', '☕ To-Do List는 잠시 휴식 중'],
+      ['팔레트', '🎨 숲의 팔레트'],
+      ['pipeline', '🔧 Pipeline(파이프라인)'],
+      ['파이프라인', '🔧 Pipeline(파이프라인)'],
+      ['포캠1', '🤖 AI특화 포캠1'],
+      ['포캠2', '🤖 AI특화 포캠2'],
+      ['기획서', '📋 기획서 찢고 나온 기획자'],
+    ];
+    function _strip(s) { return s.replace(/[^가-힣a-zA-Z0-9]/g, '').toLowerCase(); }
+    function _findPgm(pgm) {
+      if (!pgm) return null;
+      if (pgmColors[pgm]) return pgmColors[pgm]; // 정확 매칭
+      const n = _strip(pgm);
+      for (const [kw, key] of pgmKeywordMap) {
+        if (n.includes(kw)) return pgmColors[key];
+      }
+      return null;
+    }
+    function pgmColor(pgm) { return _findPgm(pgm)?.bg || '#60a5fa'; }
+    function pgmLabel(pgm) { return _findPgm(pgm)?.label || pgm; }
     function isCompleted(status) { return status === '퇴실완료'; }
 
     // Status-specific colors
