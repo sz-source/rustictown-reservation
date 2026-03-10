@@ -518,7 +518,7 @@
         <h2 class="text-lg font-bold">새 예약 등록</h2>
         <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('form-modal')">✕</button>
       </div>
-      <div class="flex border-b px-5 sticky top-[68px] bg-white z-10">
+      <div id="form-tabs" class="flex border-b px-5 sticky top-[68px] bg-white z-10">
         <button class="px-4 py-2.5 text-sm tab-active" onclick="switchFormTab('individual', this)">개별 등록</button>
         <button class="px-4 py-2.5 text-sm text-gray-500" onclick="switchFormTab('bulk', this)">일괄 등록</button>
       </div>
@@ -1534,7 +1534,7 @@
           document.getElementById('form-checkout').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(toDay).padStart(2,'0')}`;
           // If multiple rooms, switch to bulk tab and pre-fill
           if (selectedRooms.length > 1) {
-            switchFormTab('bulk', document.querySelectorAll('#form-modal .border-b button')[1]);
+            switchFormTab('bulk', document.querySelectorAll('#form-tabs button')[1]);
             populateBulkProgram();
             fillBulkFromDrag(selectedRooms, fromDay, toDay);
             const bulkInfo = document.getElementById('bulk-drag-info');
@@ -1631,7 +1631,7 @@
           document.getElementById('form-checkin').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(fromDay).padStart(2,'0')}`;
           document.getElementById('form-checkout').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(toDay).padStart(2,'0')}`;
           if (selectedRooms.length > 1) {
-            switchFormTab('bulk', document.querySelectorAll('#form-modal .border-b button')[1]);
+            switchFormTab('bulk', document.querySelectorAll('#form-tabs button')[1]);
             populateBulkProgram();
             fillBulkFromDrag(selectedRooms, fromDay, toDay);
           }
@@ -1982,7 +1982,7 @@
     // ========== NEW RESERVATION FORM RESET ==========
     function openNewReservationForm() {
       // 개별 등록 탭으로 전환
-      switchFormTab('individual', document.querySelectorAll('#form-modal .border-b button')[0]);
+      switchFormTab('individual', document.querySelectorAll('#form-tabs button')[0]);
       // 드래그 정보 배너 초기화
       const bulkInfo = document.getElementById('bulk-drag-info');
       if (bulkInfo) bulkInfo.innerHTML = '';
@@ -2273,7 +2273,7 @@
     }
 
     function switchFormTab(tab, btn) {
-      document.querySelectorAll('#form-modal .border-b button').forEach(b => { b.classList.remove('tab-active'); b.classList.add('text-gray-500'); });
+      document.querySelectorAll('#form-tabs button').forEach(b => { b.classList.remove('tab-active'); b.classList.add('text-gray-500'); });
       btn.classList.add('tab-active'); btn.classList.remove('text-gray-500');
       document.getElementById('form-individual').classList.toggle('hidden', tab !== 'individual');
       document.getElementById('form-bulk').classList.toggle('hidden', tab !== 'bulk');
