@@ -26,6 +26,7 @@
     .holiday { background: #fef2f2 !important; }
     .today { background: #eff6ff !important; font-weight: 700; }
     .cell.drag-highlight { background: #d1fae5 !important; outline: 2px solid #059669; outline-offset: -1px; }
+    .cell.multi-selected { background: #bfdbfe !important; outline: 2px solid #3b82f6; outline-offset: -1px; }
     .cell.drag-start { border-left: 2px solid #059669; }
     .cell.drag-end { border-right: 2px solid #059669; }
     .drag-tooltip { position: fixed; background: #065f46; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 12px; pointer-events: none; z-index: 100; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
@@ -298,6 +299,8 @@
         </div>
         <div class="flex items-center gap-2">
           <span id="drag-hint" class="text-xs text-gray-400 hidden"></span>
+          <button id="btn-multi-select" class="md:hidden px-3 py-1.5 border rounded text-sm hover:bg-blue-50 transition-colors" onclick="toggleMultiSelectMode(this)">⊞ 다중선택</button>
+          <span id="multi-select-badge" class="hidden text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full whitespace-nowrap"></span>
           <button id="btn-new-reservation" class="bg-blue-500 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-600" onclick="openNewReservationForm()">+ 새 예약</button>
         </div>
       </div>
@@ -1448,6 +1451,8 @@
 
     // ========== DRAG TO CREATE RESERVATION (multi-room) ==========
     let dragState = null;
+    let multiSelections = [];   // [{startRoom, endRoom, startDay, endDay}, ...]
+    let multiSelectMode = false; // 모바일 토글용
     const tooltip = document.getElementById('drag-tooltip');
     const roomNames = rooms.map(r => r.name);
 
@@ -1471,6 +1476,11 @@
         if (!day || !roomName) { document.querySelectorAll('.bar, .clean-bar').forEach(b => b.style.pointerEvents = 'auto'); return; }
         if (isRoomDisabled(roomName)) { document.querySelectorAll('.bar, .clean-bar').forEach(b => b.style.pointerEvents = 'auto'); return; }
         e.preventDefault();
+        // Ctrl(Win)/Cmd(Mac): 기존 선택 유지하고 새 드래그 시작
+        const isMultiKey = e.ctrlKey || e.metaKey;
+        if (!isMultiKey && !multiSelectMode) {
+          multiSelections = [];
+        }
         dragState = {
           startRoom: roomName, currentRoom: roomName,
           startDay: day, currentDay: day,
@@ -1497,31 +1507,30 @@
 
       document.addEventListener('mouseup', (e) => {
         if (!dragState) return;
-        clearHighlight();
         tooltip.classList.add('hidden');
 
-        // Restore pointer events on bars (use dragState from last mousemove — no recalculation)
+        // Restore pointer events on bars
         document.querySelectorAll('.bar, .clean-bar').forEach(b => b.style.pointerEvents = 'auto');
 
         // Single click on a cell that has a reservation = show detail
         const isSingleClick = dragState.startDay === dragState.currentDay && dragState.startRoom === dragState.currentRoom;
         if (isSingleClick) {
-          // Check if there's a reservation covering this room+day (오프셋 변환)
           const clickDay = dragState.startDay;
           const clickRoom = dragState.startRoom;
           const clickOff = toDayOffset(calYear, calMonth, clickDay);
           const res = reservations.find(r => r.room === clickRoom && clickOff >= r.ci && clickOff <= r.co);
           if (res) {
-            // Find the bar element (visible start day in current month)
             const monthBase = toDayOffset(calYear, calMonth, 1);
             const visStartDay = Math.max(res.ci, monthBase) - monthBase + 1;
             const ciCell = document.querySelector(`td.cell[data-room="${CSS.escape(clickRoom)}"][data-day="${visStartDay}"]`);
             const bar = ciCell ? ciCell.querySelector('.bar') : null;
             dragState = null;
+            clearHighlight();
+            // 저장된 다중선택은 유지하되 하이라이트만 다시 그림
+            if (multiSelections.length > 0) highlightCells();
             if (bar) showDetail(bar);
             return;
           }
-          // Cleaning toggle is handled by clean-bar's own onclick — no action needed here
         }
 
         const fromDay = Math.min(dragState.startDay, dragState.currentDay);
@@ -1532,7 +1541,7 @@
         const toRoom = Math.max(ri1, ri2);
         const selectedRooms = roomNames.slice(fromRoom, toRoom + 1).filter(r => !isRoomDisabled(r));
 
-        if (selectedRooms.length === 0) { dragState = null; return; }
+        if (selectedRooms.length === 0) { dragState = null; clearHighlight(); if (multiSelections.length > 0) highlightCells(); return; }
 
         // Suppress bar onclick when actual drag occurred
         if (!isSingleClick) {
@@ -1540,22 +1549,53 @@
           setTimeout(() => window._dragOccurred = false, 200);
         }
 
+        // Ctrl/Cmd 또는 모바일 다중선택 모드: 선택만 저장, 모달 열지 않음
+        const isMultiKey = e.ctrlKey || e.metaKey || multiSelectMode;
+        if (isMultiKey && currentRole === 'admin') {
+          multiSelections.push({
+            startRoom: roomNames[fromRoom],
+            endRoom: roomNames[toRoom],
+            startDay: fromDay,
+            endDay: toDay,
+            selectedRooms: [...selectedRooms]
+          });
+          dragState = null;
+          clearHighlight();
+          highlightCells();
+          updateMultiSelectBadge();
+          return;
+        }
+
+        // 최종 모달 열기: 다중 선택 + 현재 드래그를 합산
+        const allSelections = [...multiSelections];
+        if (selectedRooms.length > 0) {
+          allSelections.push({
+            startRoom: roomNames[fromRoom],
+            endRoom: roomNames[toRoom],
+            startDay: fromDay,
+            endDay: toDay,
+            selectedRooms: [...selectedRooms]
+          });
+        }
+
         if (currentRole === 'admin') {
-          // Admin: open reservation modal with pre-fill
-          document.getElementById('form-room').value = selectedRooms[0];
-          document.getElementById('form-checkin').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(fromDay).padStart(2,'0')}`;
-          document.getElementById('form-checkout').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(toDay).padStart(2,'0')}`;
-          // If multiple rooms, switch to bulk tab and pre-fill
-          if (selectedRooms.length > 1) {
+          if (allSelections.length > 1 || (allSelections.length === 1 && allSelections[0].selectedRooms.length > 1)) {
+            // 다중 선택 → 벌크 폼
             switchFormTab('bulk', document.querySelectorAll('#form-tabs button')[1]);
             populateBulkProgram();
-            fillBulkFromDrag(selectedRooms, fromDay, toDay);
+            fillBulkFromMultiSelections(allSelections);
             const bulkInfo = document.getElementById('bulk-drag-info');
-            if (bulkInfo) bulkInfo.innerHTML = `<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700 mb-3">📝 선택된 숙소: <strong>${selectedRooms.join(', ')}</strong> (${selectedRooms.length}실) · ${calMonth}/${fromDay}~${calMonth}/${toDay}</div>`;
+            const totalRooms = allSelections.reduce((s, sel) => s + sel.selectedRooms.length, 0);
+            if (bulkInfo) bulkInfo.innerHTML = `<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700 mb-3">📝 ${allSelections.length}개 영역, 총 <strong>${totalRooms}</strong>건 선택됨</div>`;
+          } else {
+            // 단일 선택
+            document.getElementById('form-room').value = selectedRooms[0];
+            document.getElementById('form-checkin').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(fromDay).padStart(2,'0')}`;
+            document.getElementById('form-checkout').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(toDay).padStart(2,'0')}`;
           }
           openModal('form-modal');
         } else {
-          // Cleaning: open cleaning modal
+          // Cleaning: 기존 동작
           const dateStart = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(fromDay).padStart(2,'0')}`;
           const dateEnd = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(toDay).padStart(2,'0')}`;
           document.getElementById('clean-date-start').value = dateStart;
@@ -1572,11 +1612,13 @@
             if (infoArea) infoArea.innerHTML = '';
             if (roomWrapper) roomWrapper.classList.remove('hidden');
           }
-          // 기존 청소 일정 감지 → 일괄삭제 버튼 표시
           const existing = findExistingCleanInRange(selectedRooms, fromDay, toDay);
           updateCleanModalButtons(existing);
           openModal('cleaning-modal');
         }
+        multiSelections = [];
+        updateMultiSelectBadge();
+        clearHighlight();
         dragState = null;
       });
     }
@@ -1603,6 +1645,8 @@
           document.querySelectorAll('.bar, .clean-bar').forEach(b => b.style.pointerEvents = 'auto');
           return;
         }
+        // 모바일: 다중선택 모드가 아니면 기존 선택 초기화
+        if (!multiSelectMode) multiSelections = [];
         dragState = { startRoom: roomName, currentRoom: roomName, startDay: day, currentDay: day, startY: touch.clientY };
         highlightCells();
       }, { passive: true });
@@ -1627,10 +1671,9 @@
       table.addEventListener('touchend', (e) => {
         if (!dragState) return;
         document.querySelectorAll('.bar, .clean-bar').forEach(b => b.style.pointerEvents = 'auto');
-        clearHighlight();
         tooltip.classList.add('hidden');
 
-        // 싱글탭 감지: 기존 예약이면 상세보기 (mouseup 핸들러와 동일)
+        // 싱글탭 감지: 기존 예약이면 상세보기
         const isSingleTap = dragState.startDay === dragState.currentDay && dragState.startRoom === dragState.currentRoom;
         if (isSingleTap) {
           const clickOff = toDayOffset(calYear, calMonth, dragState.startDay);
@@ -1641,6 +1684,8 @@
             const ciCell = document.querySelector(`td.cell[data-room="${CSS.escape(dragState.startRoom)}"][data-day="${visStartDay}"]`);
             const bar = ciCell ? ciCell.querySelector('.bar') : null;
             dragState = null;
+            clearHighlight();
+            if (multiSelections.length > 0) highlightCells();
             if (bar) showDetail(bar);
             return;
           }
@@ -1654,17 +1699,44 @@
         const toRoom = Math.max(ri1, ri2);
         const selectedRooms = roomNames.slice(fromRoom, toRoom + 1).filter(r => !isRoomDisabled(r));
 
-        if (selectedRooms.length > 0 && currentRole === 'admin') {
-          document.getElementById('form-room').value = selectedRooms[0];
-          document.getElementById('form-checkin').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(fromDay).padStart(2,'0')}`;
-          document.getElementById('form-checkout').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(toDay).padStart(2,'0')}`;
-          if (selectedRooms.length > 1) {
+        if (selectedRooms.length === 0) { dragState = null; clearHighlight(); if (multiSelections.length > 0) highlightCells(); return; }
+
+        // 모바일 다중선택 모드: 선택만 저장
+        if (multiSelectMode && currentRole === 'admin') {
+          multiSelections.push({
+            startRoom: roomNames[fromRoom],
+            endRoom: roomNames[toRoom],
+            startDay: fromDay, endDay: toDay,
+            selectedRooms: [...selectedRooms]
+          });
+          dragState = null;
+          clearHighlight();
+          highlightCells();
+          updateMultiSelectBadge();
+          return;
+        }
+
+        // 최종 모달 열기: 다중 선택 + 현재 드래그를 합산
+        const allSelections = [...multiSelections];
+        if (selectedRooms.length > 0) {
+          allSelections.push({ startRoom: roomNames[fromRoom], endRoom: roomNames[toRoom], startDay: fromDay, endDay: toDay, selectedRooms: [...selectedRooms] });
+        }
+
+        if (currentRole === 'admin') {
+          if (allSelections.length > 1 || (allSelections.length === 1 && allSelections[0].selectedRooms.length > 1)) {
             switchFormTab('bulk', document.querySelectorAll('#form-tabs button')[1]);
             populateBulkProgram();
-            fillBulkFromDrag(selectedRooms, fromDay, toDay);
+            fillBulkFromMultiSelections(allSelections);
+            const bulkInfo = document.getElementById('bulk-drag-info');
+            const totalRooms = allSelections.reduce((s, sel) => s + sel.selectedRooms.length, 0);
+            if (bulkInfo) bulkInfo.innerHTML = `<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700 mb-3">📝 ${allSelections.length}개 영역, 총 <strong>${totalRooms}</strong>건 선택됨</div>`;
+          } else {
+            document.getElementById('form-room').value = selectedRooms[0];
+            document.getElementById('form-checkin').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(fromDay).padStart(2,'0')}`;
+            document.getElementById('form-checkout').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(toDay).padStart(2,'0')}`;
           }
           openModal('form-modal');
-        } else if (selectedRooms.length > 0 && currentRole === 'cleaning') {
+        } else if (currentRole === 'cleaning') {
           const dateStart = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(fromDay).padStart(2,'0')}`;
           const dateEnd = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(toDay).padStart(2,'0')}`;
           document.getElementById('clean-date-start').value = dateStart;
@@ -1681,17 +1753,36 @@
             if (infoArea) infoArea.innerHTML = '';
             if (roomWrapper) roomWrapper.classList.remove('hidden');
           }
-          // 기존 청소 일정 감지 → 일괄삭제 버튼 표시
           const existing = findExistingCleanInRange(selectedRooms, fromDay, toDay);
           updateCleanModalButtons(existing);
           openModal('cleaning-modal');
         }
+        multiSelections = [];
+        updateMultiSelectBadge();
+        clearHighlight();
         dragState = null;
       });
     }
 
     function highlightCells() {
       clearHighlight();
+
+      // 1) 저장된 다중 선택 영역 하이라이트 (파란색)
+      const cells = document.querySelectorAll('td.cell');
+      multiSelections.forEach(sel => {
+        const ri1 = roomNames.indexOf(sel.startRoom);
+        const ri2 = roomNames.indexOf(sel.endRoom);
+        const fRoom = Math.min(ri1, ri2), tRoom = Math.max(ri1, ri2);
+        const selRooms = roomNames.slice(fRoom, tRoom + 1);
+        cells.forEach(c => {
+          const d = +c.dataset.day;
+          if (d >= sel.startDay && d <= sel.endDay && selRooms.includes(c.dataset.room) && !isRoomDisabled(c.dataset.room)) {
+            c.classList.add('multi-selected');
+          }
+        });
+      });
+
+      // 2) 현재 드래그 하이라이트 (초록색)
       if (!dragState) return;
       const fromDay = Math.min(dragState.startDay, dragState.currentDay);
       const toDay = Math.max(dragState.startDay, dragState.currentDay);
@@ -1701,7 +1792,6 @@
       const toRoom = Math.max(ri1, ri2);
       const selectedRooms = roomNames.slice(fromRoom, toRoom + 1);
 
-      const cells = document.querySelectorAll('td.cell');
       cells.forEach(c => {
         const d = +c.dataset.day;
         const rm = c.dataset.room;
@@ -1709,17 +1799,20 @@
           c.classList.add('drag-highlight');
         }
       });
+      const totalSel = multiSelections.length;
       const roomLabel = selectedRooms.length > 2
         ? `${selectedRooms[0]}~${selectedRooms[selectedRooms.length-1]} (${selectedRooms.length}실)`
         : selectedRooms.join(', ');
+      const prefix = totalSel > 0 ? `[${totalSel}개 선택됨] + ` : '';
       tooltip.textContent = currentRole === 'admin'
-        ? `📝 ${roomLabel} · ${calMonth}/${fromDay}~${calMonth}/${toDay} 예약 등록`
-        : `🧹 ${roomLabel} · ${calMonth}/${fromDay}~${calMonth}/${toDay} 청소 등록`;
+        ? `📝 ${prefix}${roomLabel} · ${calMonth}/${fromDay}~${calMonth}/${toDay} 예약 등록`
+        : `🧹 ${prefix}${roomLabel} · ${calMonth}/${fromDay}~${calMonth}/${toDay} 청소 등록`;
       tooltip.classList.remove('hidden');
     }
 
     function clearHighlight() {
       document.querySelectorAll('.drag-highlight').forEach(c => c.classList.remove('drag-highlight'));
+      document.querySelectorAll('.multi-selected').forEach(c => c.classList.remove('multi-selected'));
     }
 
     // ========== RENDER OPERATIONS PAGE ==========
@@ -2784,10 +2877,77 @@
       // Reset
       bulkGuestCount = 0;
       document.getElementById('bulk-guest-list').innerHTML = '';
-      document.getElementById('bulk-checkin').value = `2026-03-${String(fromDay).padStart(2,'0')}`;
-      document.getElementById('bulk-checkout').value = `2026-03-${String(toDay).padStart(2,'0')}`;
+      document.getElementById('bulk-checkin').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(fromDay).padStart(2,'0')}`;
+      document.getElementById('bulk-checkout').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(toDay).padStart(2,'0')}`;
       // Add one guest per selected room
       selectedRooms.forEach(r => addBulkGuest(r));
+    }
+
+    // 다중 선택 영역들을 벌크 폼에 채움
+    function fillBulkFromMultiSelections(selections) {
+      bulkGuestCount = 0;
+      document.getElementById('bulk-guest-list').innerHTML = '';
+      // 전체 기간 중 가장 이른 체크인 / 가장 늦은 체크아웃
+      let minDay = Infinity, maxDay = -Infinity;
+      selections.forEach(sel => {
+        if (sel.startDay < minDay) minDay = sel.startDay;
+        if (sel.endDay > maxDay) maxDay = sel.endDay;
+      });
+      document.getElementById('bulk-checkin').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(minDay).padStart(2,'0')}`;
+      document.getElementById('bulk-checkout').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(maxDay).padStart(2,'0')}`;
+      // 각 선택 영역의 방을 게스트 행으로 추가
+      selections.forEach(sel => {
+        sel.selectedRooms.forEach(r => addBulkGuest(r));
+      });
+    }
+
+    // 다중 선택 배지 업데이트
+    function updateMultiSelectBadge() {
+      const badge = document.getElementById('multi-select-badge');
+      if (!badge) return;
+      if (multiSelections.length > 0) {
+        const totalRooms = multiSelections.reduce((s, sel) => s + sel.selectedRooms.length, 0);
+        badge.textContent = `${multiSelections.length}개 영역 (${totalRooms}건) 선택됨 — Ctrl/Cmd 없이 드래그하면 예약 폼 열림`;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    // ESC: 다중 선택 전체 해제
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && multiSelections.length > 0) {
+        multiSelections = [];
+        clearHighlight();
+        updateMultiSelectBadge();
+      }
+    });
+
+    // 모바일 다중선택 토글
+    function toggleMultiSelectMode(btn) {
+      multiSelectMode = !multiSelectMode;
+      if (multiSelectMode) {
+        btn.classList.add('bg-blue-500', 'text-white');
+        btn.classList.remove('hover:bg-blue-50');
+        btn.textContent = '⊞ 다중선택 ON';
+      } else {
+        btn.classList.remove('bg-blue-500', 'text-white');
+        btn.classList.add('hover:bg-blue-50');
+        btn.textContent = '⊞ 다중선택';
+        // 토글 OFF 시 저장된 선택이 있으면 폼 열기
+        if (multiSelections.length > 0 && currentRole === 'admin') {
+          switchFormTab('bulk', document.querySelectorAll('#form-tabs button')[1]);
+          populateBulkProgram();
+          fillBulkFromMultiSelections(multiSelections);
+          const bulkInfo = document.getElementById('bulk-drag-info');
+          const totalRooms = multiSelections.reduce((s, sel) => s + sel.selectedRooms.length, 0);
+          if (bulkInfo) bulkInfo.innerHTML = `<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700 mb-3">📝 ${multiSelections.length}개 영역, 총 <strong>${totalRooms}</strong>건 선택됨</div>`;
+          multiSelections = [];
+          clearHighlight();
+          updateMultiSelectBadge();
+          openModal('form-modal');
+        }
+      }
     }
     // Populate bulk program select
     function populateBulkProgram() {
