@@ -258,9 +258,15 @@
         </div>
         <div><label class="block text-sm text-gray-600 mb-1">담당자</label><input id="clean-person" type="text" class="border rounded w-full px-3 py-2 text-sm" placeholder="담당자 이름"></div>
         <div><label class="block text-sm text-gray-600 mb-1">메모</label><textarea id="clean-memo" class="border rounded w-full px-3 py-2 text-sm h-16" placeholder="특이사항 (추가침구 등)"></textarea></div>
+        <div id="clean-bulk-delete-info" class="hidden">
+          <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            🗑️ 선택 범위 내 <strong id="clean-bulk-count">0</strong>건의 청소 일정이 있습니다.
+          </div>
+        </div>
         <div class="flex gap-2 pt-2">
           <button class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded hover:bg-gray-200 text-sm" onclick="closeModal('cleaning-modal')">취소</button>
-          <button class="flex-1 bg-emerald-500 text-white py-2.5 rounded hover:bg-emerald-600 text-sm font-medium" onclick="registerCleaning()">등록</button>
+          <button id="clean-bulk-delete-btn" class="hidden flex-1 bg-red-500 text-white py-2.5 rounded hover:bg-red-600 text-sm font-medium" onclick="bulkDeleteCleaning()">일괄 삭제</button>
+          <button id="clean-register-btn" class="flex-1 bg-emerald-500 text-white py-2.5 rounded hover:bg-emerald-600 text-sm font-medium" onclick="registerCleaning()">등록</button>
         </div>
       </div>
     </div>
@@ -1432,17 +1438,18 @@
           const infoArea = document.getElementById('clean-drag-info');
           const roomWrapper = document.getElementById('clean-room-wrapper');
           if (selectedRooms.length > 1) {
-            // 다중 숙소: 드래그 정보 표시, 숙소 선택 숨김
             draggedCleanRooms = [...selectedRooms];
             if (infoArea) infoArea.innerHTML = `<div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700 mb-3">🧹 선택된 숙소: <strong>${selectedRooms.join(', ')}</strong> (${selectedRooms.length}실) · ${calMonth}/${fromDay}~${calMonth}/${toDay}</div>`;
             if (roomWrapper) roomWrapper.classList.add('hidden');
           } else {
-            // 단일 숙소: 숙소 선택 표시
             draggedCleanRooms = [];
             document.getElementById('clean-room-select').value = selectedRooms[0];
             if (infoArea) infoArea.innerHTML = '';
             if (roomWrapper) roomWrapper.classList.remove('hidden');
           }
+          // 기존 청소 일정 감지 → 일괄삭제 버튼 표시
+          const existing = findExistingCleanInRange(selectedRooms, fromDay, toDay);
+          updateCleanModalButtons(existing);
           openModal('cleaning-modal');
         }
         dragState = null;
@@ -1534,6 +1541,9 @@
             if (infoArea) infoArea.innerHTML = '';
             if (roomWrapper) roomWrapper.classList.remove('hidden');
           }
+          // 기존 청소 일정 감지 → 일괄삭제 버튼 표시
+          const existing = findExistingCleanInRange(selectedRooms, fromDay, toDay);
+          updateCleanModalButtons(existing);
           openModal('cleaning-modal');
         }
         dragState = null;
@@ -1685,6 +1695,7 @@
 
     // ========== REGISTER / DELETE CLEANING ==========
     let draggedCleanRooms = []; // 드래그로 선택된 숙소 목록
+    let _cleanDragExisting = []; // 드래그 범위 내 기존 청소 일정
 
     function openCleaningModal() {
       // 버튼으로 열 때: 드래그 정보 초기화, 숙소 선택 표시
@@ -1695,6 +1706,8 @@
       if (roomWrapper) roomWrapper.classList.remove('hidden');
       document.getElementById('clean-person').value = '';
       document.getElementById('clean-memo').value = '';
+      // 일괄삭제 버튼 숨김 (버튼으로 열 때는 등록 전용)
+      updateCleanModalButtons([]);
       openModal('cleaning-modal');
     }
 
@@ -1752,6 +1765,45 @@
       renderOpsCleaning();
       renderMonthly();
       renderWeekly();
+    }
+
+    function bulkDeleteCleaning() {
+      if (_cleanDragExisting.length === 0) return;
+      const count = _cleanDragExisting.length;
+      if (!confirm(`${count}건의 청소 일정을 일괄 삭제하시겠습니까?`)) return;
+      for (const item of _cleanDragExisting) {
+        const idx = cleaningSchedule.findIndex(c => c.room === item.room && c.day === item.day);
+        if (idx !== -1) cleaningSchedule.splice(idx, 1);
+      }
+      saveCleaningToStorage();
+      _cleanDragExisting = [];
+      draggedCleanRooms = [];
+      closeModal('cleaning-modal');
+      renderOpsCleaning();
+      renderMonthly();
+      renderWeekly();
+    }
+
+    // 드래그 범위 내 기존 청소 일정 찾기
+    function findExistingCleanInRange(selectedRooms, fromDay, toDay) {
+      return cleaningSchedule.filter(c => selectedRooms.includes(c.room) && c.day >= fromDay && c.day <= toDay);
+    }
+
+    // 청소 모달에서 일괄삭제 버튼 표시/숨김 업데이트
+    function updateCleanModalButtons(existingItems) {
+      const deleteInfo = document.getElementById('clean-bulk-delete-info');
+      const deleteBtn = document.getElementById('clean-bulk-delete-btn');
+      const countEl = document.getElementById('clean-bulk-count');
+      if (existingItems.length > 0) {
+        _cleanDragExisting = existingItems;
+        if (countEl) countEl.textContent = existingItems.length;
+        if (deleteInfo) deleteInfo.classList.remove('hidden');
+        if (deleteBtn) deleteBtn.classList.remove('hidden');
+      } else {
+        _cleanDragExisting = [];
+        if (deleteInfo) deleteInfo.classList.add('hidden');
+        if (deleteBtn) deleteBtn.classList.add('hidden');
+      }
     }
 
     // ========== POPULATE FORM SELECTS ==========
