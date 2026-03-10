@@ -1291,8 +1291,11 @@
     }
 
     // ========== SHOW DETAIL MODAL ==========
+    let _detailRes = null; // 현재 상세 모달에 표시된 예약
+
     function showDetail(el) {
       const res = JSON.parse(el.dataset.res);
+      _detailRes = res;
       const ciDisp = fmtOffset(res.ci);
       const coDisp = fmtOffset(res.co);
       const nights = res.co - res.ci;
@@ -1309,7 +1312,31 @@
         const guestListHtml = res.guests && res.guests.length > 1
           ? `<div class="flex items-start"><span class="text-gray-500 w-20">게스트</span><div>${res.guests.map((g, i) => `<div class="${i === 0 ? 'font-medium' : ''}">${g.guest} (${g.count}명)${i === 0 ? ' <span class="text-xs text-blue-500">대표</span>' : ''}</div>`).join('')}</div></div>`
           : `<div class="flex"><span class="text-gray-500 w-20">이름</span><span class="font-medium">${res.guest}</span></div>`;
-        const deleteBtn = res.id ? `<div class="pt-3 mt-3 border-t"><button class="w-full py-2 text-sm text-red-500 hover:bg-red-50 rounded border border-red-200 font-medium" onclick="deleteReservationConfirm('${res.id}', '${(res.guest || '').replace(/'/g, "\\'")}')">🗑️ 예약 삭제</button></div>` : '';
+
+        // 상태 드롭다운 옵션
+        const statusKeys = Object.keys(statusColors);
+        const statusOpts = statusKeys.map(s => `<option value="${s}" ${s === res.status ? 'selected' : ''}>${s}</option>`).join('');
+
+        // 숙소 드롭다운 옵션
+        const roomOpts = rooms.filter(r => !isRoomDisabled(r.name)).map(r => `<option value="${r.name}" ${r.name === res.room ? 'selected' : ''}>${r.name}${isPremium(r.name) ? ' ★' : ''}</option>`).join('');
+
+        const editSection = res.id ? `
+          <div class="pt-3 mt-3 border-t space-y-3">
+            <div class="text-xs font-medium text-gray-400 uppercase tracking-wide">수정</div>
+            <div class="flex items-center gap-2">
+              <span class="text-gray-500 text-sm w-20">상태</span>
+              <select id="detail-edit-status" class="flex-1 border rounded px-2 py-1.5 text-sm bg-white">${statusOpts}</select>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-gray-500 text-sm w-20">숙소</span>
+              <select id="detail-edit-room" class="flex-1 border rounded px-2 py-1.5 text-sm bg-white">${roomOpts}</select>
+            </div>
+            <button id="detail-save-btn" class="w-full py-2 text-sm text-white bg-blue-500 hover:bg-blue-600 rounded font-medium" onclick="saveDetailEdit()">💾 저장</button>
+          </div>
+          <div class="pt-2">
+            <button class="w-full py-2 text-sm text-red-500 hover:bg-red-50 rounded border border-red-200 font-medium" onclick="deleteReservationConfirm('${res.id}', '${(res.guest || '').replace(/'/g, "\\'")}')">🗑️ 예약 삭제</button>
+          </div>` : '';
+
         document.getElementById('detail-content').innerHTML = `
           ${guestListHtml}
           <div class="flex"><span class="text-gray-500 w-20">숙소</span><span>${res.room}</span></div>
@@ -1318,10 +1345,26 @@
           <div class="flex"><span class="text-gray-500 w-20">프로그램</span><span>${res.pgm}</span></div>
           <div class="flex"><span class="text-gray-500 w-20">상태</span><span><span class="px-2 py-0.5 rounded text-xs" style="background:${statusColor(res.status)};color:${statusTextColor(res.status)}">${res.status}</span></span></div>
           ${beddingHtml}
-          ${deleteBtn}
+          ${editSection}
         `;
       }
       openModal('detail-modal');
+    }
+
+    async function saveDetailEdit() {
+      if (!_detailRes || !_detailRes.id) return;
+      const newStatus = document.getElementById('detail-edit-status').value;
+      const newRoom = document.getElementById('detail-edit-room').value;
+      const updates = {};
+      if (newStatus !== _detailRes.status) updates.status = newStatus;
+      if (newRoom !== _detailRes.room) updates.room = newRoom;
+      if (Object.keys(updates).length === 0) { alert('변경된 항목이 없습니다.'); return; }
+      const btn = document.getElementById('detail-save-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner"></span> 저장 중...';
+      const ok = await updateReservation(_detailRes.id, updates);
+      if (ok) closeModal('detail-modal');
+      else { btn.disabled = false; btn.textContent = '💾 저장'; }
     }
 
     // ========== DRAG TO CREATE RESERVATION (multi-room) ==========
