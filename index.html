@@ -1,0 +1,1732 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>러스틱타운 심청예약관리 - 목업</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; }
+    .tab-active { border-bottom: 3px solid #2563eb; color: #2563eb; font-weight: 600; }
+    .bar { border-radius: 4px; padding: 2px 6px; font-size: 12px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+    .bar:hover { opacity: 0.85; }
+    .view-btn.active { background: #2563eb; color: #fff; }
+    .view-btn { background: #e5e7eb; color: #374151; }
+    .nav-tab { padding: 10px 20px; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
+    .nav-tab:hover { background: #f3f4f6; }
+    .nav-tab.active { border-bottom-color: #2563eb; color: #2563eb; font-weight: 600; }
+    .modal-overlay { background: rgba(0,0,0,0.4); }
+    .cell { min-width: 38px; height: 62px; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; position: relative; }
+    .clean-bar { border-radius: 4px; padding: 2px 4px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; margin-top: 2px; text-align: center; }
+    .cell-week { min-width: 120px; height: 60px; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; position: relative; }
+    .room-header { min-width: 90px; background: #f9fafb; border-right: 1px solid #d1d5db; border-bottom: 1px solid #e5e7eb; padding: 4px 8px; position: sticky; left: 0; z-index: 10; }
+    .date-header { min-width: 38px; text-align: center; padding: 4px 2px; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #d1d5db; background: #f9fafb; font-size: 12px; }
+    .date-header-week { min-width: 120px; text-align: center; padding: 6px 4px; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #d1d5db; background: #f9fafb; font-size: 13px; }
+    .weekend { background: #fef2f2 !important; }
+    .holiday { background: #fef2f2 !important; }
+    .today { background: #eff6ff !important; font-weight: 700; }
+    .cell.drag-highlight { background: #d1fae5 !important; outline: 2px solid #059669; outline-offset: -1px; }
+    .cell.drag-start { border-left: 2px solid #059669; }
+    .cell.drag-end { border-right: 2px solid #059669; }
+    .drag-tooltip { position: fixed; background: #065f46; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 12px; pointer-events: none; z-index: 100; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+    /* Row hover highlight for calendar tables */
+    #monthly-table tr:hover > td:not(.room-header),
+    #weekly-table tr:hover > td:not(.room-header) { background-color: #f0f9ff !important; }
+    #monthly-table tr:hover > td.room-header,
+    #weekly-table tr:hover > td.room-header { background-color: #e0f2fe !important; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- Top Navigation -->
+  <nav class="bg-white border-b shadow-sm sticky top-0 z-50">
+    <div class="mx-auto flex items-center justify-between px-4">
+      <div class="flex items-center gap-1">
+        <span class="text-base font-bold py-3 pr-4 whitespace-nowrap">🏕 <span class="text-blue-500">러스틱타운</span> 심청예약관리</span>
+        <div class="nav-tab active" onclick="showPage('calendar')">캘린더</div>
+        <div id="nav-reservations" class="nav-tab" onclick="showPage('reservations')">예약 리스트</div>
+        <div id="nav-dashboard" class="nav-tab" onclick="showPage('dashboard')">대시보드</div>
+        <div id="nav-cleanguide" class="nav-tab" onclick="showPage('cleanguide')">청소가이드</div>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="header-login-btn" class="text-sm bg-blue-500 text-white px-4 py-1.5 rounded hover:bg-blue-600" onclick="document.getElementById('login-modal').classList.remove('hidden')">로그인</button>
+        <div id="header-user-info" class="hidden flex items-center gap-2">
+          <span id="header-role-label" class="text-sm font-medium text-blue-600">관리자</span>
+          <button id="btn-switch-view" class="hidden text-sm border px-3 py-1 rounded" onclick="toggleViewMode()">🧹 청소팀 뷰</button>
+          <button class="text-sm text-gray-500 hover:text-gray-700 border px-3 py-1 rounded" onclick="confirmLogout()">로그아웃</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Operations page removed — cleaning integrated into calendar -->
+  <div id="page-operations" class="page hidden max-w-5xl mx-auto p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold">🧹 운영 현황</h1>
+      <div class="flex items-center gap-3">
+        <button class="px-3 py-1.5 bg-white border rounded hover:bg-gray-50 text-sm">◀ 이전 주</button>
+        <span class="font-semibold text-lg">3/8 ~ 3/14</span>
+        <button class="px-3 py-1.5 bg-white border rounded hover:bg-gray-50 text-sm">다음 주 ▶</button>
+      </div>
+    </div>
+
+    <p class="text-gray-500 text-sm mb-6">협력업체 청소팀용 — 숙박인원, 추가침구, 입퇴실 현황 (개인정보 미포함)</p>
+
+    <!-- 이번 주 숙박 현황 (🖋️다시 앉는 문장의 방: 3/10-3/13) -->
+    <div class="mb-8">
+      <h2 class="text-lg font-semibold mb-3">🏠 이번 주 숙박 현황</h2>
+      <div class="bg-white rounded-lg border overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-2.5 text-left font-medium text-gray-600">숙소</th>
+              <th class="px-4 py-2.5 text-left font-medium text-gray-600">프로그램</th>
+              <th class="px-4 py-2.5 text-center font-medium text-gray-600">인원</th>
+              <th class="px-4 py-2.5 text-center font-medium text-gray-600">추가 요</th>
+              <th class="px-4 py-2.5 text-center font-medium text-gray-600">추가 이불</th>
+              <th class="px-4 py-2.5 text-center font-medium text-gray-600">추가 베개</th>
+              <th class="px-4 py-2.5 text-center font-medium text-gray-600">입실</th>
+              <th class="px-4 py-2.5 text-center font-medium text-gray-600">퇴실</th>
+            </tr>
+          </thead>
+          <tbody id="ops-accommodation-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 이번 주 청소 일정 -->
+    <div class="mb-6">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-semibold">🧹 이번 주 청소 일정</h2>
+        <button class="bg-emerald-500 text-white px-4 py-1.5 rounded text-sm hover:bg-emerald-600" onclick="openModal('cleaning-modal')">+ 청소 일정 등록</button>
+      </div>
+      <div class="bg-white rounded-lg border overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-2.5 text-left font-medium text-gray-600">숙소</th>
+              <th class="px-4 py-2.5 text-center font-medium text-gray-600">청소일</th>
+              <th class="px-4 py-2.5 text-center font-medium text-gray-600">담당</th>
+              <th class="px-4 py-2.5 text-center font-medium text-gray-600">상태</th>
+            </tr>
+          </thead>
+          <tbody id="ops-cleaning-tbody"></tbody>
+        </table>
+      </div>
+      <div class="mt-3 bg-amber-50 rounded-lg p-3 text-xs text-amber-700">
+        <p>⏰ <strong>입실 청소</strong>: 입실일 오후 4시 이전까지 완료 &nbsp;|&nbsp; <strong>퇴실 청소</strong>: 퇴실일 오전 11시 이후 시작 가능</p>
+      </div>
+      <div class="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
+        <span><span class="inline-block w-3 h-3 rounded bg-emerald-500 mr-1"></span> 완료</span>
+        <span><span class="inline-block w-3 h-3 rounded bg-blue-400 mr-1"></span> 예정</span>
+        <span class="text-amber-500">&#9733; 넓은 숙소</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Modal: 청소 일정 등록 ==================== -->
+  <div id="cleaning-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4" onclick="if(event.target===this)closeModal('cleaning-modal')">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between p-5 border-b">
+        <h2 class="text-lg font-bold">청소 일정 등록</h2>
+        <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('cleaning-modal')">✕</button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div id="clean-drag-info"></div>
+        <div><label class="block text-sm text-gray-600 mb-1">숙소 *</label><select class="border rounded w-full px-3 py-2 text-sm bg-white" id="clean-room-select"></select></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-sm text-gray-600 mb-1">시작일 *</label><input id="clean-date-start" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-10"></div>
+          <div><label class="block text-sm text-gray-600 mb-1">종료일 *</label><input id="clean-date-end" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-10"></div>
+        </div>
+        <div><label class="block text-sm text-gray-600 mb-1">담당자</label><input type="text" class="border rounded w-full px-3 py-2 text-sm" placeholder="담당자 이름"></div>
+        <div><label class="block text-sm text-gray-600 mb-1">메모</label><textarea class="border rounded w-full px-3 py-2 text-sm h-16" placeholder="특이사항 (추가침구 등)"></textarea></div>
+        <div class="flex gap-2 pt-2">
+          <button class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded hover:bg-gray-200 text-sm" onclick="closeModal('cleaning-modal')">취소</button>
+          <button class="flex-1 bg-emerald-500 text-white py-2.5 rounded hover:bg-emerald-600 text-sm font-medium">등록</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Page 1: 캘린더 ==================== -->
+  <div id="page-calendar" class="page">
+    <div class="max-w-full mx-auto p-4">
+      <!-- Calendar Header -->
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div class="flex items-center gap-3">
+          <h1 class="text-xl font-bold">🏕 예약 캘린더</h1>
+          <div class="flex rounded-lg overflow-hidden border">
+            <button class="view-btn active px-3 py-1.5 text-sm font-medium" onclick="switchView('monthly', this)">월간</button>
+            <button class="view-btn px-3 py-1.5 text-sm font-medium" onclick="switchView('weekly', this)">주간</button>
+          </div>
+        </div>
+        <div id="period-nav-monthly" class="flex items-center gap-3">
+          <button class="px-3 py-1.5 bg-white border rounded hover:bg-gray-50 text-sm">◀ 2월</button>
+          <span class="font-semibold text-lg">3월 2026</span>
+          <button class="px-3 py-1.5 bg-white border rounded hover:bg-gray-50 text-sm">4월 ▶</button>
+        </div>
+        <div id="period-nav-weekly" class="hidden flex items-center gap-3">
+          <button class="px-3 py-1.5 bg-white border rounded hover:bg-gray-50 text-sm">◀ 이전</button>
+          <span class="font-semibold text-lg">3/8 ~ 3/14</span>
+          <button class="px-3 py-1.5 bg-white border rounded hover:bg-gray-50 text-sm">다음 ▶</button>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="drag-hint" class="text-xs text-gray-400 hidden"></span>
+          <button id="btn-new-reservation" class="bg-blue-500 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-600" onclick="openModal('form-modal')">+ 새 예약</button>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="flex items-center justify-between px-1 py-1">
+        <div id="pgm-legend" class="flex flex-wrap items-center gap-3 text-xs text-gray-500"></div>
+        <div class="flex items-center gap-3 text-xs text-gray-500">
+          <span><span class="inline-block w-3 h-3 rounded mr-1" style="background:#3b82f6"></span>오늘</span>
+          <span><span class="inline-block w-3 h-3 rounded mr-1" style="background:#ef4444"></span>공휴일 · 주말</span>
+        </div>
+      </div>
+
+      <!-- Monthly View (JS-generated) -->
+      <div id="view-monthly" class="bg-white rounded-lg border overflow-x-auto">
+        <table id="monthly-table" class="border-collapse" style="min-width:1400px"></table>
+      </div>
+
+      <!-- Weekly View (JS-generated) -->
+      <div id="view-weekly" class="hidden bg-white rounded-lg border overflow-x-auto">
+        <table id="weekly-table" class="border-collapse w-full" style="min-width:1000px"></table>
+      </div>
+
+      <!-- 청소 일정은 캘린더 셀 내에서 직접 확인 가능 -->
+    </div>
+  </div>
+
+  <!-- ==================== Page 3: 예약 리스트 ==================== -->
+  <div id="page-reservations" class="page hidden max-w-6xl mx-auto p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h1 class="text-xl font-bold">📋 예약 관리</h1>
+      <button class="bg-blue-500 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-600" onclick="openModal('form-modal')">+ 새 예약</button>
+    </div>
+
+    <!-- 입퇴실 예정 -->
+    <div class="grid md:grid-cols-2 gap-4 mb-6">
+      <div class="bg-white rounded-lg border p-4">
+        <h3 class="font-semibold text-sm mb-3">📥 이번 주 입실 예정 (3/10 주)</h3>
+        <div class="space-y-2 text-sm">
+          <div class="flex gap-3"><span class="text-gray-500 w-20">3/10 (화)</span><span>🖋️ 다시 앉는 문장의 방 — 19명</span></div>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg border p-4">
+        <h3 class="font-semibold text-sm mb-3">📤 이번 주 퇴실 예정</h3>
+        <div class="space-y-2 text-sm">
+          <div class="flex gap-3"><span class="text-gray-500 w-20">3/13 (금)</span><span>🖋️ 다시 앉는 문장의 방 — 19명 전원 퇴실</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="flex gap-2 mb-4 flex-wrap">
+      <select class="border rounded px-3 py-1.5 text-sm bg-white"><option>전체 상태</option><option>신규</option><option>예약승인안내</option><option>3일전안내</option><option>1일전안내</option><option>이용중</option><option>퇴실완료</option><option>환불/취소</option></select>
+      <select class="border rounded px-3 py-1.5 text-sm bg-white"><option>전체 프로그램</option><option>🐿️ 도시의 다람쥐</option><option>🖋️ 다시 앉는 문장의 방</option><option>🧩 빌드하다 길 잃음</option><option>✨ 같은 곳, 다른 리듬</option><option>🌲 내일 말고 지금</option></select>
+      <select class="border rounded px-3 py-1.5 text-sm bg-white"><option>전체 숙소</option><option>장미1</option><option>장미2</option><option>국화1</option><option>국화3</option><option>심청1</option><option>심청2</option></select>
+      <select class="border rounded px-3 py-1.5 text-sm bg-white"><option>3월</option><option>4월</option></select>
+      <input type="text" placeholder="🔍 검색..." class="border rounded px-3 py-1.5 text-sm flex-1 min-w-[150px]">
+    </div>
+
+    <!-- Table (JS-generated) -->
+    <div class="bg-white rounded-lg border overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b">
+          <tr>
+            <th class="px-4 py-3 text-left font-medium">이름</th>
+            <th class="px-4 py-3 text-left font-medium">숙소</th>
+            <th class="px-4 py-3 text-left font-medium">기간</th>
+            <th class="px-4 py-3 text-center font-medium">인원</th>
+            <th class="px-4 py-3 text-left font-medium">프로그램</th>
+            <th class="px-4 py-3 text-center font-medium">상태</th>
+          </tr>
+        </thead>
+        <tbody id="reservations-tbody"></tbody>
+      </table>
+      <div id="reservations-count" class="px-4 py-3 bg-gray-50 border-t text-sm text-gray-600"></div>
+    </div>
+  </div>
+
+  <!-- ==================== Page 4: 대시보드 ==================== -->
+  <div id="page-dashboard" class="page hidden max-w-5xl mx-auto p-6">
+    <h1 class="text-xl font-bold mb-6">📊 대시보드</h1>
+
+    <!-- 통계 영역: 토글 버튼 + 연도 선택 -->
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <button onclick="changeDashYear(-1)" class="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500">&lt;</button>
+        <span id="dash-year" class="font-semibold text-lg min-w-[4rem] text-center">2026</span>
+        <button onclick="changeDashYear(1)" class="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500">&gt;</button>
+      </div>
+      <div class="flex bg-gray-100 rounded-lg p-0.5">
+        <button id="btn-monthly" onclick="switchDashView('monthly')" class="px-4 py-1.5 rounded-md text-sm font-medium bg-white shadow text-blue-600">월별</button>
+        <button id="btn-annual" onclick="switchDashView('annual')" class="px-4 py-1.5 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700">연간</button>
+      </div>
+    </div>
+
+    <!-- 월별 뷰 -->
+    <div id="dash-view-monthly" class="grid md:grid-cols-3 gap-6 mb-6">
+      <div class="md:col-span-2 bg-white rounded-lg border p-5">
+        <h2 class="font-semibold mb-4">📅 <span id="dash-monthly-title">2026</span>년 월별 예약 수</h2>
+        <div id="dash-monthly-grid" class="grid grid-cols-6 gap-3"></div>
+      </div>
+      <div class="bg-white rounded-lg border p-5">
+        <h2 class="font-semibold mb-4" id="dash-month-gender-title">👥 3월 성비</h2>
+        <div class="flex justify-center" id="dash-month-gender-chart"></div>
+        <div class="flex justify-center gap-6 mt-3 text-sm" id="dash-month-gender-legend"></div>
+      </div>
+    </div>
+
+    <!-- 연간 뷰 -->
+    <div id="dash-view-annual" class="grid md:grid-cols-3 gap-6 mb-6 hidden">
+      <div class="md:col-span-2 bg-white rounded-lg border p-5">
+        <h2 class="font-semibold mb-4">📈 <span id="dash-annual-title">2026</span> 연간 예약 수</h2>
+        <div id="dash-annual-bar" class="flex items-end gap-2 h-40"></div>
+        <div class="text-right text-sm text-gray-500 mt-3">누적: <span class="font-bold text-gray-800" id="dash-annual-total">247명</span></div>
+      </div>
+      <div class="bg-white rounded-lg border p-5">
+        <h2 class="font-semibold mb-4" id="dash-annual-gender-title">👥 2026 연간 성비</h2>
+        <div class="flex justify-center" id="dash-annual-gender-chart"></div>
+        <div class="flex justify-center gap-6 mt-3 text-sm" id="dash-annual-gender-legend"></div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg border p-5">
+      <h2 class="font-semibold mb-4">📅 3월 프로그램별 현황</h2>
+      <div class="space-y-3 text-sm">
+        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded"><span class="w-56">🐿️ 앗! 도시의 다람쥐가 나타났다!</span><span class="text-gray-500">3/3 ~ 3/7</span><span class="ml-auto font-medium">21명</span></div>
+        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded"><span class="w-56">🖋️ 다시 앉는 문장의 방</span><span class="text-gray-500">3/10 ~ 3/13</span><span class="ml-auto font-medium">19명</span></div>
+        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded"><span class="w-56">🧩 빌드하다 길 잃음</span><span class="text-gray-500">3/16 ~ 3/19</span><span class="ml-auto font-medium">18명</span></div>
+        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded"><span class="w-56">✨ 같은 곳, 다른 리듬</span><span class="text-gray-500">3/23 ~ 3/26</span><span class="ml-auto font-medium">17명</span></div>
+        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded"><span class="w-56">🌲 내일 말고 지금</span><span class="text-gray-500">3/30 ~ 4/2</span><span class="ml-auto font-medium">15명</span></div>
+      </div>
+    </div>
+
+    <!-- 프로그램 관리 -->
+    <div class="bg-white rounded-lg border p-5 mt-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-semibold">🎯 프로그램 관리</h2>
+        <button class="bg-blue-500 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-600" onclick="openModal('pgm-modal')">+ 프로그램 추가</button>
+      </div>
+      <div class="space-y-2" id="pgm-list"></div>
+    </div>
+
+    <!-- 숙소 관리 -->
+    <div class="bg-white rounded-lg border p-5 mt-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-semibold">🏠 숙소 관리</h2>
+        <span class="text-sm text-gray-400" id="room-count"></span>
+      </div>
+      <p class="text-sm text-gray-500 mb-3">사용불가 처리된 숙소는 예약 등록 시 선택할 수 없으며, 캘린더에서 비활성화 표시됩니다.</p>
+      <div class="space-y-2 max-h-96 overflow-y-auto" id="room-list"></div>
+    </div>
+  </div>
+
+  <!-- ==================== Page: 청소가이드 ==================== -->
+  <div id="page-cleanguide" class="page hidden max-w-3xl mx-auto p-6">
+    <h1 class="text-xl font-bold mb-2">🧹 숙소 청소 & 퀄리티 관리 가이드</h1>
+    <p class="text-sm text-gray-500 mb-4">입실 직전 기준, 모든 숙소에 공통 적용되는 청소 기준입니다.</p>
+
+    <!-- 기본 원칙 -->
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+      <div class="font-semibold text-amber-800 mb-2">1️⃣ 기본 원칙</div>
+      <ul class="text-sm text-amber-900 space-y-1.5">
+        <li>• 이전 투숙객의 흔적이 느껴지지 않아야 합니다.</li>
+        <li>• '눈에 보이는 깨끗함'뿐 아니라 <strong>냄새, 촉감(맨발), 습기</strong>까지 포함합니다.</li>
+        <li>• 머리카락, 물때, 벌레 사체는 <strong>입실 전 0건</strong> 기준입니다.</li>
+      </ul>
+    </div>
+
+    <!-- 아코디언 체크리스트 -->
+    <div class="space-y-3" id="clean-guide-accordion"></div>
+  </div>
+
+  <!-- ==================== Modal: 로그인 ==================== -->
+  <div id="login-modal" class="fixed inset-0 modal-overlay z-[60] flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm" onclick="event.stopPropagation()">
+      <div class="p-6 text-center border-b">
+        <div class="text-2xl mb-1">🏕</div>
+        <h2 class="text-lg font-bold">러스틱타운 심청예약관리</h2>
+        <p class="text-sm text-gray-400 mt-1">로그인이 필요합니다</p>
+      </div>
+      <div class="p-6 space-y-4">
+        <div><label class="block text-sm text-gray-600 mb-1">아이디</label><input id="login-id" type="text" class="border rounded w-full px-3 py-2 text-sm" placeholder="아이디 입력" onkeydown="if(event.key==='Enter')doLogin()"></div>
+        <div><label class="block text-sm text-gray-600 mb-1">비밀번호</label><input id="login-pw" type="password" class="border rounded w-full px-3 py-2 text-sm" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLogin()"></div>
+        <div id="login-error" class="text-red-500 text-sm hidden">아이디 또는 비밀번호가 올바르지 않습니다.</div>
+        <button class="w-full bg-blue-500 text-white py-2.5 rounded-lg font-medium hover:bg-blue-600" onclick="doLogin()">로그인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Logout Confirmation Modal -->
+  <div id="logout-confirm-modal" class="fixed inset-0 modal-overlay z-[70] hidden flex items-center justify-center p-4" onclick="if(event.target===this)this.classList.add('hidden')">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-xs p-6 text-center" onclick="event.stopPropagation()">
+      <div class="text-3xl mb-3">👋</div>
+      <h3 class="font-bold text-lg mb-1">로그아웃</h3>
+      <p class="text-sm text-gray-500 mb-5">정말 로그아웃할까요?</p>
+      <div class="flex gap-3">
+        <button class="flex-1 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50" onclick="document.getElementById('logout-confirm-modal').classList.add('hidden')">취소</button>
+        <button class="flex-1 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600" onclick="doLogout()">로그아웃</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Modal: 예약 상세 ==================== -->
+  <div id="detail-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4" onclick="if(event.target===this)closeModal('detail-modal')">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between p-5 border-b">
+        <h2 class="text-lg font-bold">예약 상세</h2>
+        <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('detail-modal')">✕</button>
+      </div>
+      <div id="detail-content" class="p-5 space-y-3 text-sm"></div>
+    </div>
+  </div>
+
+  <!-- ==================== Modal: 예약 등록 폼 ==================== -->
+  <div id="form-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4" onclick="if(event.target===this)closeModal('form-modal')">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between p-5 border-b sticky top-0 bg-white z-10">
+        <h2 class="text-lg font-bold">새 예약 등록</h2>
+        <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('form-modal')">✕</button>
+      </div>
+      <div class="flex border-b px-5 sticky top-[68px] bg-white z-10">
+        <button class="px-4 py-2.5 text-sm tab-active" onclick="switchFormTab('individual', this)">개별 등록</button>
+        <button class="px-4 py-2.5 text-sm text-gray-500" onclick="switchFormTab('bulk', this)">일괄 등록</button>
+      </div>
+      <!-- Individual Form -->
+      <div id="form-individual" class="p-5 space-y-4" style="max-height:70vh;overflow-y:auto">
+        <!-- 숙박 인원 -->
+        <div class="flex gap-4">
+          <div class="flex-1">
+            <label class="block text-sm text-gray-600 mb-1">숙박인원 *</label>
+            <select id="form-guest-count" class="border rounded w-full px-3 py-2 text-sm bg-white" onchange="updateGuestForms()">
+              <option value="1">1명</option><option value="2">2명</option><option value="3">3명</option><option value="4">4명</option><option value="5">5명</option>
+            </select>
+          </div>
+          <div class="flex-1">
+            <label class="block text-sm text-gray-600 mb-1">소속</label>
+            <input type="text" class="border rounded w-full px-3 py-2 text-sm" placeholder="소속/기업명">
+          </div>
+        </div>
+        <!-- 게스트 정보 영역 -->
+        <div id="form-guests-area">
+          <div class="bg-blue-50 rounded-lg p-3 space-y-3 mb-2" id="guest-form-1">
+            <div class="text-sm font-medium text-blue-700">👤 게스트 1 (대표)</div>
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="block text-xs text-gray-500 mb-1">성함 *</label><input type="text" class="border rounded w-full px-3 py-1.5 text-sm" placeholder="이름"></div>
+              <div><label class="block text-xs text-gray-500 mb-1">전화번호</label><input type="text" class="border rounded w-full px-3 py-1.5 text-sm" placeholder="010-0000-0000"></div>
+            </div>
+            <div><label class="block text-xs text-gray-500 mb-1">성별</label><div class="flex gap-4"><label class="flex items-center gap-1.5 text-sm"><input type="radio" name="gender-1" checked> 남자</label><label class="flex items-center gap-1.5 text-sm"><input type="radio" name="gender-1"> 여자</label></div></div>
+          </div>
+        </div>
+        <!-- 예약 정보 -->
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-sm text-gray-600 mb-1">숙소 *</label><select id="form-room" class="border rounded w-full px-3 py-2 text-sm bg-white"></select></div>
+          <div><label class="block text-sm text-gray-600 mb-1">프로그램</label><select id="form-program" class="border rounded w-full px-3 py-2 text-sm bg-white"></select></div>
+        </div>
+        <div><label class="block text-sm text-gray-600 mb-1">구성</label><select class="border rounded w-full px-3 py-2 text-sm bg-white"><option>B2C 포레스트캠프</option><option>B2B 러케이션</option><option>기타</option></select></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-sm text-gray-600 mb-1">입실일 *</label><input id="form-checkin" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-16"></div>
+          <div><label class="block text-sm text-gray-600 mb-1">퇴실일 *</label><input id="form-checkout" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-19"></div>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
+          <div class="text-sm text-gray-600 mb-2">추가 침구</div>
+          <div class="grid grid-cols-3 gap-3">
+            <div><label class="block text-xs text-gray-500 mb-1">요</label><select class="border rounded w-full px-3 py-1.5 text-sm bg-white"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+            <div><label class="block text-xs text-gray-500 mb-1">이불</label><select class="border rounded w-full px-3 py-1.5 text-sm bg-white"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+            <div><label class="block text-xs text-gray-500 mb-1">베개</label><select class="border rounded w-full px-3 py-1.5 text-sm bg-white"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+          </div>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded hover:bg-gray-200 text-sm" onclick="closeModal('form-modal')">취소</button>
+          <button class="flex-1 bg-blue-500 text-white py-2.5 rounded hover:bg-blue-600 text-sm font-medium">저장</button>
+        </div>
+      </div>
+      <!-- Bulk Form -->
+      <div id="form-bulk" class="hidden p-5 space-y-4" style="max-height:70vh;overflow-y:auto">
+        <div id="bulk-drag-info"></div>
+        <div class="bg-blue-50 rounded-lg p-4 space-y-3">
+          <div class="text-sm font-medium text-blue-700 mb-1">공통 정보</div>
+          <div><label class="block text-sm text-gray-600 mb-1">프로그램 *</label><select id="bulk-program" class="border rounded w-full px-3 py-2 text-sm bg-white"></select></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="block text-sm text-gray-600 mb-1">입실일 *</label><input id="bulk-checkin" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-16"></div>
+            <div><label class="block text-sm text-gray-600 mb-1">퇴실일 *</label><input id="bulk-checkout" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-19"></div>
+          </div>
+        </div>
+        <div>
+          <div class="text-sm font-medium text-gray-700 mb-2">게스트 목록</div>
+          <div class="space-y-2" id="bulk-guest-list"></div>
+          <button class="mt-2 text-sm text-blue-500 hover:text-blue-700 font-medium" onclick="addBulkGuest()">+ 게스트 추가</button>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded hover:bg-gray-200 text-sm" onclick="closeModal('form-modal')">취소</button>
+          <button class="flex-1 bg-blue-500 text-white py-2.5 rounded hover:bg-blue-600 text-sm font-medium">2명 일괄 저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Modal: 프로그램 관리 ==================== -->
+  <div id="pgm-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4" onclick="if(event.target===this)closeModal('pgm-modal')">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between p-5 border-b">
+        <h2 class="text-lg font-bold" id="pgm-modal-title">프로그램 추가</h2>
+        <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('pgm-modal')">✕</button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div><label class="block text-sm text-gray-600 mb-1">프로그램명 *</label><input id="pgm-name" type="text" class="border rounded w-full px-3 py-2 text-sm" placeholder="예: 🖋️ 다시 앉는 문장의 방"></div>
+        <div><label class="block text-sm text-gray-600 mb-1">약칭 *</label><input id="pgm-short" type="text" class="border rounded w-full px-3 py-2 text-sm" placeholder="예: 문장의 방 (캘린더 바에 표시)"></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-sm text-gray-600 mb-1">시작일</label><input id="pgm-start" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-16"></div>
+          <div><label class="block text-sm text-gray-600 mb-1">종료일</label><input id="pgm-end" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-19"></div>
+        </div>
+        <div><label class="block text-sm text-gray-600 mb-1">이모지</label><input id="pgm-emoji" type="text" class="border rounded w-full px-3 py-2 text-sm" placeholder="🎯" maxlength="4"></div>
+        <div><label class="block text-sm text-gray-600 mb-1">색상</label>
+          <div class="flex gap-2 mt-1" id="pgm-color-picker">
+            <div class="w-8 h-8 rounded-full cursor-pointer ring-2 ring-offset-1 ring-blue-400" style="background:#93c5fd" onclick="selectPgmColor(this,'#93c5fd')"></div>
+            <div class="w-8 h-8 rounded-full cursor-pointer" style="background:#a78bfa" onclick="selectPgmColor(this,'#a78bfa')"></div>
+            <div class="w-8 h-8 rounded-full cursor-pointer" style="background:#6ee7b7" onclick="selectPgmColor(this,'#6ee7b7')"></div>
+            <div class="w-8 h-8 rounded-full cursor-pointer" style="background:#fbbf24" onclick="selectPgmColor(this,'#fbbf24')"></div>
+            <div class="w-8 h-8 rounded-full cursor-pointer" style="background:#f87171" onclick="selectPgmColor(this,'#f87171')"></div>
+            <div class="w-8 h-8 rounded-full cursor-pointer" style="background:#fb923c" onclick="selectPgmColor(this,'#fb923c')"></div>
+            <div class="w-8 h-8 rounded-full cursor-pointer" style="background:#38bdf8" onclick="selectPgmColor(this,'#38bdf8')"></div>
+            <div class="w-8 h-8 rounded-full cursor-pointer" style="background:#e879f9" onclick="selectPgmColor(this,'#e879f9')"></div>
+          </div>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded hover:bg-gray-200 text-sm" onclick="closeModal('pgm-modal')">취소</button>
+          <button class="flex-1 bg-blue-500 text-white py-2.5 rounded hover:bg-blue-600 text-sm font-medium">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drag tooltip -->
+  <div id="drag-tooltip" class="drag-tooltip hidden"></div>
+
+  <script>
+    // ========== AUTH ==========
+    let currentRole = null; // null | 'admin' | 'cleaning'
+    let loggedInAs = null;  // actual login role (admin stays admin even in cleaning view)
+    const accounts = {
+      rustictown: { pw: '102938', role: 'admin' },
+      thankyou: { pw: '1234', role: 'cleaning' },
+    };
+
+    function doLogin() {
+      const id = document.getElementById('login-id').value.trim();
+      const pw = document.getElementById('login-pw').value;
+      const acc = accounts[id];
+      if (acc && acc.pw === pw) {
+        currentRole = acc.role;
+        loggedInAs = acc.role;
+        sessionStorage.setItem('loggedInRole', acc.role);
+        document.getElementById('login-modal').classList.add('hidden');
+        document.getElementById('login-error').classList.add('hidden');
+        applyRole();
+      } else {
+        document.getElementById('login-error').classList.remove('hidden');
+      }
+    }
+
+    function confirmLogout() {
+      document.getElementById('logout-confirm-modal').classList.remove('hidden');
+    }
+    function doLogout() {
+      document.getElementById('logout-confirm-modal').classList.add('hidden');
+      currentRole = null;
+      loggedInAs = null;
+      sessionStorage.removeItem('loggedInRole');
+      document.getElementById('login-modal').classList.remove('hidden');
+      document.getElementById('login-id').value = '';
+      document.getElementById('login-pw').value = '';
+      applyRole();
+    }
+
+    function toggleViewMode() {
+      if (loggedInAs !== 'admin') return;
+      if (currentRole === 'admin') {
+        currentRole = 'cleaning';
+      } else {
+        currentRole = 'admin';
+      }
+      applyRole();
+    }
+
+    function applyRole() {
+      const isClean = currentRole === 'cleaning';
+      const isAdmin = currentRole === 'admin';
+      const loggedIn = currentRole !== null;
+      const isAdminViewingClean = loggedInAs === 'admin' && currentRole === 'cleaning';
+
+      // Nav tabs
+      document.getElementById('nav-reservations').classList.toggle('hidden', isClean || !loggedIn);
+      document.getElementById('nav-dashboard').classList.toggle('hidden', isClean || !loggedIn);
+      document.getElementById('nav-cleanguide').classList.toggle('hidden', !isClean);
+
+      // Header right: login button vs user info
+      document.getElementById('header-login-btn').classList.toggle('hidden', loggedIn);
+      document.getElementById('header-user-info').classList.toggle('hidden', !loggedIn);
+
+      // Switch view button: only visible when logged in as admin
+      const switchBtn = document.getElementById('btn-switch-view');
+      if (switchBtn) {
+        switchBtn.classList.toggle('hidden', loggedInAs !== 'admin');
+        if (loggedInAs === 'admin') {
+          switchBtn.textContent = isAdminViewingClean ? '🔙 관리자 뷰' : '🧹 청소팀 뷰';
+          switchBtn.className = isAdminViewingClean
+            ? 'text-sm border border-blue-300 text-blue-600 bg-blue-50 px-3 py-1 rounded hover:bg-blue-100'
+            : 'text-sm border border-green-300 text-green-600 bg-green-50 px-3 py-1 rounded hover:bg-green-100';
+        }
+      }
+
+      if (loggedIn) {
+        const roleLabel = document.getElementById('header-role-label');
+        if (isAdminViewingClean) {
+          roleLabel.textContent = '관리자 (청소팀 뷰)';
+          roleLabel.className = 'text-sm font-medium text-green-600';
+        } else if (isAdmin) {
+          roleLabel.textContent = '관리자';
+          roleLabel.className = 'text-sm font-medium text-blue-600';
+        } else {
+          roleLabel.textContent = '청소팀';
+          roleLabel.className = 'text-sm font-medium text-green-600';
+        }
+      }
+
+      // New reservation button
+      const newResBtn = document.getElementById('btn-new-reservation');
+      if (newResBtn) newResBtn.classList.toggle('hidden', isClean);
+
+      // Drag hint text (admin: 예약 등록, cleaning: 청소 일정 등록)
+      // drag-hint removed from UI
+
+      // Re-render calendars
+      if (loggedIn) {
+        renderMonthly();
+        renderWeekly();
+      }
+
+      // Show calendar page + nav tab active state reset
+      if (loggedIn) {
+        document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+        document.getElementById('page-calendar').classList.remove('hidden');
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.nav-tab')[0].classList.add('active'); // 캘린더 탭
+      }
+    }
+
+    // ========== DATA (from Monday.com Board #18401306495) ==========
+    const premiumRooms = ['장미1','국화1','심청2','심청1','철쭉1','국화3','산내음'];
+    const rooms = [
+      { name: '장미1', type: 'Q / 1인' }, { name: '장미2', type: 'Q / 1인' },
+      { name: '국화1', type: 'Q / 1인' }, { name: '국화3', type: 'Q / 1인' },
+      { name: '심청1', type: 'SS / 2인' }, { name: '심청2', type: 'Q / 2인' },
+      { name: '철쭉1', type: 'Q / 1인' }, { name: '철쭉2', type: 'Q / 1인' }, { name: '철쭉3', type: 'Q / 1인' },
+      { name: '매화', type: 'Q / 1인' },
+      { name: '풀내음', type: 'Q / 1인' }, { name: '들내음', type: 'Q / 1인' },
+      { name: '토란', type: 'Q / 1인' }, { name: '산내음', type: 'Q / 1인' },
+      { name: '한옥', type: 'Q / 1인' }, { name: '연꽃', type: 'Q / 1인' },
+      { name: '하이파이브 201', type: 'Q / 1인' }, { name: '하이파이브 202', type: 'Q / 1인' },
+      { name: '하이파이브 203', type: 'Q / 1인' }, { name: '하이파이브 204', type: 'Q / 1인' },
+    ];
+    function isPremium(name) { return premiumRooms.includes(name); }
+    function premiumBadge(name) { return isPremium(name) ? '<span class="text-amber-500 ml-0.5" title="넓은 숙소">&#9733;</span>' : ''; }
+
+    // Program colors
+    const pgmColors = {
+      '🐿️ 앗! 도시의 다람쥐가': { bg: '#93c5fd', label: '도시의 다람쥐', schedule: '3/3(월)~3/7(토)', nights: '4박5일' },
+      '🖋️ 다시 앉는 문장의 방': { bg: '#a78bfa', label: '문장의 방', schedule: '3/10(월)~3/13(목)', nights: '3박4일' },
+      '🧩 빌드하다 길 잃음': { bg: '#6ee7b7', label: '빌드하다', schedule: '3/16(월)~3/20(금)', nights: '4박5일' },
+      '✨ 같은 곳 다른 리듬': { bg: '#fbbf24', label: '같은 곳', schedule: '3/23(월)~3/27(금)', nights: '4박5일' },
+      '🌲 내일말고지금': { bg: '#f87171', label: '내일말고지금', schedule: '3/30(월)~4/3(금)', nights: '4박5일' },
+      '🏕️ 내일은 숲으로 출근합니다': { bg: '#f472b6', label: '숲출근', schedule: '4/6(월)~4/9(목)', nights: '3박4일' },
+      '🧘 나를 위한 캐시 삭제': { bg: '#38bdf8', label: '캐시삭제', schedule: '4/12(일)~4/15(수)', nights: '3박4일' },
+      '☕ To-Do List는 잠시 휴식 중': { bg: '#fb923c', label: 'ToDo휴식', schedule: '4/15(수)~4/18(토)', nights: '3박4일' },
+      '🎨 숲의 팔레트': { bg: '#c084fc', label: '숲팔레트', schedule: '4/21(화)~4/24(금)', nights: '3박4일' },
+      '🔧 Pipeline(파이프라인)': { bg: '#2dd4bf', label: 'Pipeline', schedule: '4/27(월)~4/30(목)', nights: '3박4일' },
+      '🤖 AI특화 포캠1': { bg: '#818cf8', label: 'AI포캠1', schedule: '5/3(일)~5/7(목)', nights: '4박5일' },
+      '📋 기획서 찢고 나온 기획자': { bg: '#e879f9', label: '기획자', schedule: '5/12(화)~5/15(금)', nights: '3박4일' },
+      '🤖 AI특화 포캠2': { bg: '#60a5fa', label: 'AI포캠2', schedule: '5/17(일)~5/21(목)', nights: '4박5일' },
+    };
+    function pgmColor(pgm) { return pgmColors[pgm]?.bg || '#60a5fa'; }
+    function pgmLabel(pgm) { return pgmColors[pgm]?.label || pgm; }
+    function isCompleted(status) { return status === '퇴실완료'; }
+
+    // Status-specific colors
+    const statusColors = {
+      '신규': { bg: '#333333', text: '#fff' },
+      '예약승인안내': { bg: '#579bfc', text: '#fff' },
+      '3일전안내': { bg: '#fdab3d', text: '#fff' },
+      '1일전안내': { bg: '#9cd326', text: '#fff' },
+      '이용중': { bg: '#00c875', text: '#fff' },
+      '퇴실완료': { bg: '#c4c4c4', text: '#fff' },
+      '환불/취소': { bg: '#bb3354', text: '#fff' },
+    };
+    function statusColor(status) { return statusColors[status]?.bg || '#c4c4c4'; }
+    function statusTextColor(status) { return statusColors[status]?.text || '#fff'; }
+
+    // Reservations: real data from Monday board + representative data for programs 3-5
+    const reservations = [
+      // Program 1: 🐿️ 앗! 도시의 다람쥐가 나타났다! (3/3 ~ 3/7) — 21명
+      { guest: '현지은', room: '장미1', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
+      { guest: '이건주', room: '장미2', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
+      { guest: '손희준', room: '국화1', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
+      { guest: '홍승미', room: '국화3', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 2, status: '퇴실완료' },
+      { guest: '정정훈', room: '심청1', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 2, status: '퇴실완료' },
+      { guest: '박장호', room: '심청2', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 3, status: '퇴실완료' },
+      { guest: '최유하', room: '철쭉1', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
+      { guest: '최우정', room: '철쭉2', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
+      { guest: '이자현', room: '철쭉3', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
+      { guest: '승은', room: '매화', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
+      { guest: '길성호', room: '풀내음', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
+      { guest: '안나래', room: '토란', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
+      { guest: 'Test김희정', room: '한옥', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
+      { guest: '김은희', room: '하이파이브 201', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
+      { guest: '이다혜', room: '하이파이브 202', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
+      { guest: '조정화', room: '하이파이브 203', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
+      { guest: '정태민', room: '하이파이브 204', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
+
+      // Program 2: 🖋️ 다시 앉는 문장의 방 (3/10 ~ 3/13) — 19명
+      { guest: '이성현', room: '장미1', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 1, status: '예약승인안내' },
+      { guest: '정지원', room: '장미2', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 1, status: '예약승인안내' },
+      { guest: '최준희', room: '국화1', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 1, status: '예약승인안내' },
+      { guest: '정유선', room: '국화3', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 1, status: '예약승인안내' },
+      { guest: '김지혜', room: '심청1', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 1, status: '예약승인안내' },
+      { guest: '김송이', room: '심청2', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 1, status: '예약승인안내' },
+      { guest: '서채연', room: '철쭉1', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 1, status: '예약승인안내' },
+      { guest: '정예지', room: '철쭉2', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 1, status: '예약승인안내' },
+      { guest: '김정인', room: '철쭉3', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 1, status: '예약승인안내' },
+      { guest: '이서연', room: '매화', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 1, status: '예약승인안내' },
+      { guest: '신서현', room: '풀내음', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 1, status: '예약승인안내' },
+      { guest: '나래미', room: '들내음', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 1, status: '예약승인안내' },
+      { guest: '자은', room: '토란', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 1, status: '예약승인안내' },
+      { guest: '진은비', room: '산내음', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 2, status: '예약승인안내' },
+      { guest: '김현서', room: '하이파이브 201', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 1, status: '예약승인안내' },
+      { guest: '한지혜', room: '하이파이브 202', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 1, status: '예약승인안내' },
+      { guest: '홍지수', room: '하이파이브 203', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 1, status: '예약승인안내' },
+      { guest: '류혜원', room: '하이파이브 204', ci: 10, co: 13, pgm: '🖋️ 다시 앉는 문장의 방', count: 1, status: '예약승인안내' },
+
+      // Program 3: 🧩 빌드하다 길 잃음 (3/16 ~ 3/19) — 18명
+      { guest: '유지현', room: '장미1', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+      { guest: '이하진', room: '장미2', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+      { guest: '김태윤', room: '국화1', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+      { guest: '정서원', room: '국화3', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+      { guest: '박은비', room: '심청1', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+      { guest: '최다연', room: '심청2', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+      { guest: '한도현', room: '철쭉1', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+      { guest: '오서진', room: '철쭉2', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+      { guest: '송민지', room: '철쭉3', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+      { guest: '이수빈', room: '매화', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+      { guest: '강예린', room: '풀내음', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+      { guest: '문정인', room: '들내음', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+      { guest: '윤하늘', room: '토란', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+      { guest: '박효리', room: '산내음', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+      { guest: '조승우', room: '하이파이브 201', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+      { guest: '임현서', room: '하이파이브 202', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+      { guest: '배은주', room: '하이파이브 203', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+      { guest: '신지아', room: '하이파이브 204', ci: 16, co: 19, pgm: '🧩 빌드하다 길 잃음', count: 1, status: '예약승인안내' },
+
+      // Program 4: ✨ 같은 곳, 다른 리듬 (3/23 ~ 3/26) — 17명
+      { guest: '서민재', room: '장미1', ci: 23, co: 26, pgm: '✨ 같은 곳 다른 리듬', count: 1, status: '예약승인안내' },
+      { guest: '한유정', room: '장미2', ci: 23, co: 26, pgm: '✨ 같은 곳 다른 리듬', count: 1, status: '예약승인안내' },
+      { guest: '이채원', room: '국화1', ci: 23, co: 26, pgm: '✨ 같은 곳 다른 리듬', count: 1, status: '예약승인안내' },
+      { guest: '박서연', room: '국화3', ci: 23, co: 26, pgm: '✨ 같은 곳 다른 리듬', count: 1, status: '예약승인안내' },
+      { guest: '윤지호', room: '심청1', ci: 23, co: 26, pgm: '✨ 같은 곳 다른 리듬', count: 1, status: '예약승인안내' },
+      { guest: '김하늘', room: '심청2', ci: 23, co: 26, pgm: '✨ 같은 곳 다른 리듬', count: 1, status: '예약승인안내' },
+      { guest: '정수빈', room: '철쭉1', ci: 23, co: 26, pgm: '✨ 같은 곳 다른 리듬', count: 1, status: '예약승인안내' },
+      { guest: '최은서', room: '철쭉2', ci: 23, co: 26, pgm: '✨ 같은 곳 다른 리듬', count: 1, status: '예약승인안내' },
+      { guest: '양도현', room: '철쭉3', ci: 23, co: 26, pgm: '✨ 같은 곳 다른 리듬', count: 1, status: '예약승인안내' },
+      { guest: '이다영', room: '매화', ci: 23, co: 26, pgm: '✨ 같은 곳 다른 리듬', count: 1, status: '예약승인안내' },
+      { guest: '송지원', room: '풀내음', ci: 23, co: 26, pgm: '✨ 같은 곳 다른 리듬', count: 1, status: '예약승인안내' },
+      { guest: '강민서', room: '토란', ci: 23, co: 26, pgm: '✨ 같은 곳 다른 리듬', count: 1, status: '예약승인안내' },
+      { guest: '박지안', room: '산내음', ci: 23, co: 26, pgm: '✨ 같은 곳 다른 리듬', count: 1, status: '예약승인안내' },
+      { guest: '오현진', room: '들내음', ci: 23, co: 26, pgm: '✨ 같은 곳 다른 리듬', count: 1, status: '예약승인안내' },
+      { guest: '임서윤', room: '하이파이브 201', ci: 23, co: 26, pgm: '✨ 같은 곳 다른 리듬', count: 1, status: '예약승인안내' },
+      { guest: '유하린', room: '하이파이브 202', ci: 23, co: 26, pgm: '✨ 같은 곳 다른 리듬', count: 1, status: '예약승인안내' },
+      { guest: '배소연', room: '하이파이브 203', ci: 23, co: 26, pgm: '✨ 같은 곳 다른 리듬', count: 1, status: '예약승인안내' },
+
+      // Program 5: 🌲 내일 말고 지금 (3/30 ~ 4/2) — 15명 (March shows 30~31 only)
+      { guest: '이민주', room: '장미1', ci: 30, co: 33, pgm: '🌲 내일말고지금', count: 1, status: '예약승인안내' },
+      { guest: '김지영', room: '장미2', ci: 30, co: 33, pgm: '🌲 내일말고지금', count: 1, status: '예약승인안내' },
+      { guest: '박서현', room: '국화1', ci: 30, co: 33, pgm: '🌲 내일말고지금', count: 1, status: '예약승인안내' },
+      { guest: '정다인', room: '국화3', ci: 30, co: 33, pgm: '🌲 내일말고지금', count: 1, status: '예약승인안내' },
+      { guest: '한소연', room: '심청1', ci: 30, co: 33, pgm: '🌲 내일말고지금', count: 1, status: '예약승인안내' },
+      { guest: '김유진', room: '심청2', ci: 30, co: 33, pgm: '🌲 내일말고지금', count: 1, status: '예약승인안내' },
+      { guest: '이준서', room: '철쭉1', ci: 30, co: 33, pgm: '🌲 내일말고지금', count: 1, status: '예약승인안내' },
+      { guest: '안성용', room: '철쭉2', ci: 30, co: 33, pgm: '🌲 내일말고지금', count: 1, status: '예약승인안내' },
+      { guest: '박채영', room: '철쭉3', ci: 30, co: 33, pgm: '🌲 내일말고지금', count: 1, status: '예약승인안내' },
+      { guest: '오지현', room: '매화', ci: 30, co: 33, pgm: '🌲 내일말고지금', count: 1, status: '예약승인안내' },
+      { guest: '지경민', room: '풀내음', ci: 30, co: 33, pgm: '🌲 내일말고지금', count: 1, status: '예약승인안내' },
+      { guest: '이서영', room: '들내음', ci: 30, co: 33, pgm: '🌲 내일말고지금', count: 1, status: '예약승인안내' },
+      { guest: '황신희', room: '토란', ci: 30, co: 33, pgm: '🌲 내일말고지금', count: 1, status: '예약승인안내' },
+      { guest: '송예진', room: '산내음', ci: 30, co: 33, pgm: '🌲 내일말고지금', count: 1, status: '예약승인안내' },
+      { guest: '임태현', room: '하이파이브 201', ci: 30, co: 33, pgm: '🌲 내일말고지금', count: 1, status: '예약승인안내' },
+    ];
+
+    // Bedding info: rooms that need extra bedding (추가침구)
+    const extraBedding = {
+      '산내음': { yo: 1, blanket: 1, pillow: 1 },  // 2인 이상 시 추가
+      '심청1': { yo: 0, blanket: 0, pillow: 1 },   // 2인 기본 but 추가 베개
+      '심청2': { yo: 1, blanket: 1, pillow: 2 },   // 3인 숙박 시 추가
+    };
+    function hasExtraBedding(room, count) {
+      return extraBedding[room] && count >= 2;
+    }
+
+    // Global cleaning schedule (used by calendar and cleaning table)
+    const cleaningSchedule = [];
+    function buildCleaningSchedule() {
+      cleaningSchedule.length = 0;
+      // 3/2(월) 청소완료 — 다람쥐 프로그램 입실 전 전체 청소
+      rooms.filter(r => !isRoomDisabled(r.name)).slice(0, 17).forEach((room, i) => {
+        cleaningSchedule.push({ room: room.name, day: 2, person: i < 9 ? '김미숙' : '이정희', done: true });
+      });
+      // 3/9(월)~3/10(화) 청소예정 — 다람쥐 퇴실 후 문장의방 입실 전 청소 (오후4시 전까지)
+      rooms.filter(r => !isRoomDisabled(r.name)).slice(0, 17).forEach((room, i) => {
+        cleaningSchedule.push({ room: room.name, day: 9, person: i < 9 ? '김미숙' : '이정희', done: false });
+        cleaningSchedule.push({ room: room.name, day: 10, person: i < 9 ? '김미숙' : '이정희', done: false });
+      });
+    }
+    function getCleaningForCell(roomName, day) {
+      return cleaningSchedule.find(c => c.room === roomName && c.day === day);
+    }
+
+    // March 2026 day-of-week: 1=Sun, 2=Mon, ..., 7=Sat, 8=Sun, 9=Mon(today), ...
+    const dayNames = ['일','월','화','수','목','금','토'];
+    const march2026StartDay = 0; // March 1 is Sunday (index 0)
+    function getDow(day) { return (march2026StartDay + day - 1) % 7; } // 0=Sun..6=Sat
+    function isWeekend(day) { const d = getDow(day); return d === 0 || d === 6; }
+
+    // 2026 한국 공휴일 (네이버 달력 기준)
+    const holidays2026 = {
+      '1-1': '신정', '1-27': '설날 대체', '1-28': '설날', '1-29': '설날', '1-30': '설날',
+      '3-1': '삼일절', '3-2': '삼일절 대체',
+      '5-5': '어린이날', '5-25': '부처님오신날 대체',
+      '6-6': '현충일',
+      '8-15': '광복절', '8-17': '광복절 대체',
+      '9-24': '추석', '9-25': '추석', '9-26': '추석',
+      '10-3': '개천절', '10-5': '개천절 대체', '10-9': '한글날',
+      '12-25': '성탄절',
+    };
+    function isHoliday(month, day) { return holidays2026[`${month}-${day}`]; }
+
+    // Merge reservations: group by same room + same ci + same co
+    function mergeReservations(roomRes) {
+      const groups = {};
+      roomRes.forEach(r => {
+        const key = `${r.ci}-${r.co}`;
+        if (!groups[key]) {
+          groups[key] = { ...r, guests: [{ guest: r.guest, count: r.count, phone: r.phone, gender: r.gender, status: r.status }] };
+        } else {
+          groups[key].count += r.count;
+          groups[key].guests.push({ guest: r.guest, count: r.count, phone: r.phone, gender: r.gender, status: r.status });
+          // 대표자 이름 업데이트: "이름 외 N명"
+          if (groups[key].guests.length > 1) {
+            groups[key].guest = groups[key].guests[0].guest;
+          }
+        }
+      });
+      return Object.values(groups).sort((a, b) => a.ci - b.ci);
+    }
+
+    // Cleaning spans helper - groups consecutive cleaning days per room
+    function getCleaningSpans(roomName) {
+      const roomCleans = cleaningSchedule.filter(c => c.room === roomName).sort((a, b) => a.day - b.day);
+      const spans = [];
+      let i = 0;
+      while (i < roomCleans.length) {
+        const start = roomCleans[i];
+        let endDay = start.day;
+        while (i + 1 < roomCleans.length && roomCleans[i + 1].day === endDay + 1 && roomCleans[i + 1].done === start.done) {
+          i++; endDay = roomCleans[i].day;
+        }
+        spans.push({ startDay: start.day, endDay, done: start.done, person: start.person });
+        i++;
+      }
+      return spans;
+    }
+
+    // ========== RENDER MONTHLY CALENDAR ==========
+    function renderMonthly() {
+      const table = document.getElementById('monthly-table');
+      let html = '<thead><tr>';
+      html += '<th class="room-header text-left text-sm font-semibold text-gray-700" style="min-width:90px;background:#f3f4f6">숙소</th>';
+      for (let d = 1; d <= 31; d++) {
+        const dow = getDow(d);
+        const isWe = dow === 0 || dow === 6;
+        const hol = isHoliday(3, d);
+        const isToday = d === 9;
+        let cls = 'date-header';
+        if (isWe || hol) cls += ' weekend';
+        if (hol) cls += ' holiday';
+        if (isToday) cls += ' today';
+        const isRed = hol || dow === 0;
+        const numStyle = isRed ? ' style="color:#ef4444"' : '';
+        const daySpanCls = isToday ? 'text-blue-500' : (isRed ? 'text-red-400' : 'text-gray-400');
+        const holTitle = hol ? ` title="${hol}"` : '';
+        html += `<th class="${cls}"${holTitle}><span${numStyle}>${d}</span><br><span class="${daySpanCls} text-[10px]">${dayNames[dow]}</span></th>`;
+      }
+      html += '</tr></thead><tbody>';
+
+      rooms.forEach(room => {
+        const disabled = isRoomDisabled(room.name);
+        const roomResRaw = reservations.filter(r => r.room === room.name).sort((a,b) => a.ci - b.ci);
+        const roomRes = mergeReservations(roomResRaw);
+        html += '<tr>';
+        const disabledBadge = disabled ? ' <span class="text-[9px] px-1 py-0.5 rounded bg-red-100 text-red-500">사용불가</span>' : '';
+        html += `<td class="room-header" ${disabled?'style="opacity:0.5"':''}><div class="font-medium text-sm">${room.name}${premiumBadge(room.name)}${disabledBadge}</div><div class="text-[10px] text-gray-400">${room.type}</div></td>`;
+
+        if (disabled) {
+          for (let d = 1; d <= 31; d++) html += `<td class="cell" data-room="${room.name}" data-day="${d}" style="background:repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 10px,#e5e7eb 10px,#e5e7eb 11px);opacity:0.5"></td>`;
+        } else {
+          const cleanSpans = getCleaningSpans(room.name);
+          for (let day = 1; day <= 31; day++) {
+            const res = roomRes.find(r => day >= r.ci && day <= Math.min(r.co, 31));
+            let cellContent = '';
+
+            if (res) {
+              const end = Math.min(res.co, 31);
+              const span = end - res.ci + 1;
+              const done = isCompleted(res.status);
+              const color = done ? '#d1d5db' : pgmColor(res.pgm);
+              const textColor = done ? 'color:#9ca3af' : 'color:#fff';
+              const isCleanMode = currentRole === 'cleaning';
+              const guestCount = res.guests ? res.guests.length : 1;
+              const nameLabel = isCleanMode ? `${res.count}명` : (guestCount > 1 ? `${res.guest} 외 ${guestCount - 1}명 (${res.count}명)` : (res.count > 1 ? `${res.guest} (${res.count}명)` : res.guest));
+              const hasBedding = hasExtraBedding(res.room, res.count);
+              const beddingText = hasBedding ? (() => { const b = extraBedding[res.room]; const p = []; if(b.yo) p.push('요'+b.yo); if(b.blanket) p.push('이불'+b.blanket); if(b.pillow) p.push('베개'+b.pillow); return p.join(' '); })() : '';
+              const label = isCleanMode ? (hasBedding && span >= 3 ? `${res.count}명 · ${beddingText}` : `${res.count}명`) : (span >= 3 ? `${nameLabel} · ${pgmLabel(res.pgm)}` : nameLabel);
+              const beddingIcon = hasBedding ? '<span style="font-size:11px;vertical-align:middle;flex-shrink:0" title="추가침구">🔴</span>' : '';
+              const beddingBorder = hasBedding ? 'border:2px dashed rgba(255,255,255,0.6);' : '';
+
+              if (day === res.ci) {
+                const halfCell = span > 1;
+                const barLeft = halfCell ? 'left:50%;' : 'left:2px;';
+                const barWidth = halfCell ? `calc(${(span - 1) * 100}% + ${(span - 1)}px)` : 'calc(100% - 4px)';
+                cellContent += `<div class="bar" style="position:absolute;top:4px;${barLeft}width:${barWidth};background:${color};${textColor};${beddingBorder}display:flex;align-items:center;justify-content:center;gap:2px;z-index:2;pointer-events:auto;overflow:hidden" onclick="if(!window._dragOccurred)showDetail(this)" data-res='${JSON.stringify(res)}'>${beddingIcon}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span></div>`;
+              }
+            }
+
+            // Cleaning bar (spans consecutive days as one bar)
+            const cleanSpan = cleanSpans.find(s => s.startDay === day);
+            if (cleanSpan) {
+              const spanLen = Math.min(cleanSpan.endDay, 31) - cleanSpan.startDay + 1;
+              const halfCell = spanLen > 1;
+              const barLeft = halfCell ? 'left:50%;' : 'left:2px;';
+              const barWidth = halfCell ? `calc(${(spanLen - 1) * 100}% + ${(spanLen - 1)}px)` : 'calc(100% - 4px)';
+              const cleanLabel = cleanSpan.done ? '완료' : '예정';
+              cellContent += `<div class="clean-bar" data-clean-room="${room.name}" data-clean-day="${cleanSpan.startDay}" onclick="event.stopPropagation();toggleCleanStatus('${room.name}',${cleanSpan.startDay})" style="position:absolute;bottom:2px;${barLeft}width:${barWidth};background:${cleanSpan.done?'#d1fae5':'#fef3c7'};color:${cleanSpan.done?'#065f46':'#92400e'};z-index:3;padding:2px 4px;font-size:12px;border-radius:4px;text-align:center;white-space:nowrap;overflow:hidden;pointer-events:auto;cursor:pointer">${cleanLabel}</div>`;
+            }
+
+            html += `<td class="cell" data-room="${room.name}" data-day="${day}" style="position:relative;overflow:visible;padding:0">${cellContent}</td>`;
+          }
+        }
+        html += '</tr>';
+      });
+
+      html += '</tbody>';
+      table.innerHTML = html;
+      setupDrag();
+    }
+
+    // ========== RENDER WEEKLY CALENDAR (Sun~Sat: 3/8 ~ 3/14) ==========
+    function renderWeekly() {
+      const table = document.getElementById('weekly-table');
+      const weekStart = 8, weekEnd = 14;
+      let html = '<thead><tr>';
+      html += '<th class="room-header text-left text-sm font-semibold text-gray-700" style="min-width:90px;background:#f3f4f6">숙소</th>';
+      for (let d = weekStart; d <= weekEnd; d++) {
+        const dow = getDow(d);
+        const isWe = dow === 0 || dow === 6;
+        let cls = 'date-header-week';
+        if (isWe) cls += ' weekend';
+        html += `<th class="${cls}">${dayNames[dow]} 3/${d}</th>`;
+      }
+      html += '</tr></thead><tbody>';
+
+      rooms.forEach(room => {
+        const disabled = isRoomDisabled(room.name);
+        const roomResRaw = reservations.filter(r => r.room === room.name && r.ci <= weekEnd && r.co >= weekStart);
+        const roomRes = mergeReservations(roomResRaw);
+        html += '<tr>';
+        const disabledBadge = disabled ? ' <span class="text-[9px] px-1 py-0.5 rounded bg-red-100 text-red-500">사용불가</span>' : '';
+        html += `<td class="room-header" ${disabled?'style="opacity:0.5"':''}><div class="font-medium text-sm">${room.name}${premiumBadge(room.name)}${disabledBadge}</div><div class="text-[10px] text-gray-400">${room.type}</div></td>`;
+
+        if (disabled) {
+          html += `<td class="cell-week" colspan="7" style="background:repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 10px,#e5e7eb 10px,#e5e7eb 11px);opacity:0.5"><div class="text-center text-xs text-gray-400 py-4">사용불가</div></td>`;
+        } else {
+          const cleanSpans = getCleaningSpans(room.name);
+          for (let day = weekStart; day <= weekEnd; day++) {
+            const res = roomRes.find(r => day >= Math.max(r.ci, weekStart) && day <= Math.min(r.co, weekEnd));
+            let cellContent = '';
+
+            if (res) {
+              const barStart = Math.max(res.ci, weekStart);
+              const barEnd = Math.min(res.co, weekEnd);
+              if (day === barStart) {
+                const span = barEnd - barStart + 1;
+                const done = isCompleted(res.status);
+                const color = done ? '#d1d5db' : pgmColor(res.pgm);
+                const textColor = done ? 'color:#9ca3af' : 'color:#fff';
+                const isCleanMode = currentRole === 'cleaning';
+                const hasBedding = hasExtraBedding(res.room, res.count);
+                const beddingText = hasBedding ? (() => { const b = extraBedding[res.room]; const p = []; if(b.yo) p.push('요'+b.yo); if(b.blanket) p.push('이불'+b.blanket); if(b.pillow) p.push('베개'+b.pillow); return p.join(' '); })() : '';
+                const guestCount = res.guests ? res.guests.length : 1;
+                const nameLabel = guestCount > 1 ? `${res.guest} 외 ${guestCount - 1}명 (${res.count}명)` : (res.count > 1 ? `${res.guest} (${res.count}명)` : res.guest);
+                const label = isCleanMode ? (hasBedding ? `${res.count}명 · ${beddingText}` : `${res.count}명`) : `${nameLabel} · ${pgmLabel(res.pgm)}`;
+                const beddingIcon = hasBedding ? '<span style="font-size:12px;vertical-align:middle;flex-shrink:0" title="추가침구">🔴</span>' : '';
+                const beddingBorder = hasBedding ? 'border:2px dashed rgba(255,255,255,0.6);' : '';
+                const halfCell = span > 1;
+                const barLeft = halfCell ? 'left:50%;' : 'left:2px;';
+                const barWidth = halfCell ? `calc(${(span - 1) * 100}% + ${(span - 1)}px)` : 'calc(100% - 4px)';
+                const alignStyle = isCleanMode ? 'justify-content:center;' : '';
+                cellContent += `<div class="bar py-1.5 px-2" style="position:absolute;top:4px;${barLeft}width:${barWidth};background:${color};${textColor};${beddingBorder}display:flex;align-items:center;gap:3px;${alignStyle}z-index:2;pointer-events:auto;overflow:hidden" onclick="showDetail(this)" data-res='${JSON.stringify(res)}'>${beddingIcon}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span></div>`;
+              }
+            }
+
+            // Cleaning bar (spans consecutive days, clamped to week range)
+            const cleanSpan = cleanSpans.find(s => day >= Math.max(s.startDay, weekStart) && day <= Math.min(s.endDay, weekEnd));
+            if (cleanSpan) {
+              const clampedStart = Math.max(cleanSpan.startDay, weekStart);
+              if (day === clampedStart) {
+                const clampedEnd = Math.min(cleanSpan.endDay, weekEnd);
+                const spanLen = clampedEnd - clampedStart + 1;
+                const halfCell = spanLen > 1;
+                const cleanBarLeft = halfCell ? 'left:50%;' : 'left:2px;';
+                const barWidth = halfCell ? `calc(${(spanLen - 1) * 100}% + ${(spanLen - 1)}px)` : 'calc(100% - 4px)';
+                cellContent += `<div class="clean-bar" data-clean-room="${room.name}" data-clean-day="${cleanSpan.startDay}" onclick="event.stopPropagation();toggleCleanStatus('${room.name}',${cleanSpan.startDay})" style="position:absolute;bottom:2px;${cleanBarLeft}width:${barWidth};background:${cleanSpan.done?'#d1fae5':'#fef3c7'};color:${cleanSpan.done?'#065f46':'#92400e'};z-index:3;padding:2px 4px;font-size:12px;border-radius:4px;pointer-events:auto;cursor:pointer">${cleanSpan.done?'✓ 청소완료':'🧹 청소예정'}</div>`;
+              }
+            }
+
+            html += `<td class="cell-week" style="position:relative;overflow:visible;padding:0">${cellContent}</td>`;
+          }
+        }
+        html += '</tr>';
+      });
+      html += '</tbody>';
+      table.innerHTML = html;
+    }
+
+    // ========== RENDER RESERVATIONS LIST ==========
+    function renderReservationsList() {
+      const tbody = document.getElementById('reservations-tbody');
+      const activeRes = reservations.filter(r => !isCompleted(r.status));
+      let html = '';
+      activeRes.forEach((r, i) => {
+        const coDisplay = r.co > 31 ? `4/${r.co - 31}` : `3/${r.co}`;
+        html += `<tr class="border-t hover:bg-gray-50 cursor-pointer" onclick="showDetail(this)" data-res='${JSON.stringify(r)}'>`;
+        html += `<td class="px-4 py-3 font-medium">${r.guest}</td>`;
+        html += `<td class="px-4 py-3">${r.room}${premiumBadge(r.room)}</td>`;
+        html += `<td class="px-4 py-3">3/${r.ci} ~ ${coDisplay}</td>`;
+        html += `<td class="px-4 py-3 text-center">${r.count}명</td>`;
+        html += `<td class="px-4 py-3"><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:${pgmColor(r.pgm)}"></span>${r.pgm}</td>`;
+        html += `<td class="px-4 py-3 text-center"><span class="px-2 py-0.5 rounded text-xs" style="background:${statusColor(r.status)};color:${statusTextColor(r.status)}">${r.status}</span></td>`;
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+      document.getElementById('reservations-count').textContent = `전체 ${activeRes.length}건 (퇴실완료 제외)`;
+    }
+
+    // ========== SHOW DETAIL MODAL ==========
+    function showDetail(el) {
+      const res = JSON.parse(el.dataset.res);
+      const coDisplay = res.co > 31 ? `4/${res.co - 31}` : `3/${res.co}`;
+      const nights = res.co - res.ci;
+      const beddingHtml = hasExtraBedding(res.room, res.count) ? `<div class="flex items-start"><span class="text-gray-500 w-20">추가침구</span><span class="text-red-500 font-medium">🔴 ${(() => { const b = extraBedding[res.room]; const parts = []; if(b.yo) parts.push('요 '+b.yo); if(b.blanket) parts.push('이불 '+b.blanket); if(b.pillow) parts.push('베개 '+b.pillow); return parts.join(', '); })()}</span></div>` : '';
+
+      if (currentRole === 'cleaning') {
+        // 청소팀: 숙박인원, 입퇴실일, 추가침구
+        document.getElementById('detail-content').innerHTML = `
+          <div class="flex"><span class="text-gray-500 w-20">숙소</span><span class="font-medium">${res.room}</span></div>
+          <div class="flex"><span class="text-gray-500 w-20">숙박인원</span><span class="font-medium">${res.count}명</span></div>
+          <div class="flex"><span class="text-gray-500 w-20">기간</span><span>3/${res.ci} ~ ${coDisplay} (${nights}박${nights + 1}일)</span></div>
+          ${beddingHtml}
+        `;
+      } else {
+        // 관리자: 전체 정보
+        const guestListHtml = res.guests && res.guests.length > 1
+          ? `<div class="flex items-start"><span class="text-gray-500 w-20">게스트</span><div>${res.guests.map((g, i) => `<div class="${i === 0 ? 'font-medium' : ''}">${g.guest} (${g.count}명)${i === 0 ? ' <span class="text-xs text-blue-500">대표</span>' : ''}</div>`).join('')}</div></div>`
+          : `<div class="flex"><span class="text-gray-500 w-20">이름</span><span class="font-medium">${res.guest}</span></div>`;
+        document.getElementById('detail-content').innerHTML = `
+          ${guestListHtml}
+          <div class="flex"><span class="text-gray-500 w-20">숙소</span><span>${res.room}</span></div>
+          <div class="flex"><span class="text-gray-500 w-20">기간</span><span>3/${res.ci} ~ ${coDisplay} (${nights}박${nights+1}일)</span></div>
+          <div class="flex"><span class="text-gray-500 w-20">숙박인원</span><span class="font-medium">${res.count}명</span></div>
+          <div class="flex"><span class="text-gray-500 w-20">프로그램</span><span>${res.pgm}</span></div>
+          <div class="flex"><span class="text-gray-500 w-20">상태</span><span><span class="px-2 py-0.5 rounded text-xs" style="background:${statusColor(res.status)};color:${statusTextColor(res.status)}">${res.status}</span></span></div>
+          ${beddingHtml}
+        `;
+      }
+      openModal('detail-modal');
+    }
+
+    // ========== DRAG TO CREATE RESERVATION (multi-room) ==========
+    let dragState = null;
+    const tooltip = document.getElementById('drag-tooltip');
+    const roomNames = rooms.map(r => r.name);
+
+    function setupDrag() {
+      const table = document.getElementById('monthly-table');
+      // Helper: find the actual td.cell under a mouse position
+      function getCellAt(x, y) {
+        const el = document.elementFromPoint(x, y);
+        return el ? el.closest('td.cell') : null;
+      }
+
+      table.addEventListener('mousedown', (e) => {
+        // If clicked on a clean-bar, skip drag — let the clean-bar's own onclick handle toggle
+        if (e.target.closest('.clean-bar')) return;
+        // Disable pointer events on bars FIRST so elementFromPoint sees actual cells
+        document.querySelectorAll('.bar, .clean-bar').forEach(b => b.style.pointerEvents = 'none');
+        const cell = getCellAt(e.clientX, e.clientY);
+        if (!cell) { document.querySelectorAll('.bar, .clean-bar').forEach(b => b.style.pointerEvents = 'auto'); return; }
+        const day = cell.dataset.day ? +cell.dataset.day : null;
+        const roomName = cell.dataset.room;
+        if (!day || !roomName) { document.querySelectorAll('.bar, .clean-bar').forEach(b => b.style.pointerEvents = 'auto'); return; }
+        if (isRoomDisabled(roomName)) { document.querySelectorAll('.bar, .clean-bar').forEach(b => b.style.pointerEvents = 'auto'); return; }
+        e.preventDefault();
+        dragState = {
+          startRoom: roomName, currentRoom: roomName,
+          startDay: day, currentDay: day
+        };
+        highlightCells();
+      });
+
+      table.addEventListener('mousemove', (e) => {
+        if (!dragState) return;
+        const cell = getCellAt(e.clientX, e.clientY);
+        const day = cell && cell.dataset.day ? +cell.dataset.day : null;
+        if (cell && day) {
+          dragState.currentDay = day;
+          if (cell.dataset.room) dragState.currentRoom = cell.dataset.room;
+          highlightCells();
+        }
+        tooltip.style.left = (e.clientX + 12) + 'px';
+        tooltip.style.top = (e.clientY - 30) + 'px';
+      });
+
+      document.addEventListener('mouseup', (e) => {
+        if (!dragState) return;
+        clearHighlight();
+        tooltip.classList.add('hidden');
+
+        // Restore pointer events on bars (use dragState from last mousemove — no recalculation)
+        document.querySelectorAll('.bar, .clean-bar').forEach(b => b.style.pointerEvents = 'auto');
+
+        // Single click on a cell that has a reservation = show detail
+        const isSingleClick = dragState.startDay === dragState.currentDay && dragState.startRoom === dragState.currentRoom;
+        if (isSingleClick) {
+          // Check if there's a reservation covering this room+day
+          const clickDay = dragState.startDay;
+          const clickRoom = dragState.startRoom;
+          const res = reservations.find(r => r.room === clickRoom && clickDay >= r.ci && clickDay < r.co);
+          if (res) {
+            // Find the bar element for this reservation (it lives in the check-in cell)
+            const ciCell = document.querySelector(`td.cell[data-room="${CSS.escape(clickRoom)}"][data-day="${res.ci}"]`);
+            const bar = ciCell ? ciCell.querySelector('.bar') : null;
+            dragState = null;
+            if (bar) showDetail(bar);
+            return;
+          }
+          // Cleaning toggle is handled by clean-bar's own onclick — no action needed here
+        }
+
+        const fromDay = Math.min(dragState.startDay, dragState.currentDay);
+        const toDay = Math.max(dragState.startDay, dragState.currentDay);
+        const ri1 = roomNames.indexOf(dragState.startRoom);
+        const ri2 = roomNames.indexOf(dragState.currentRoom);
+        const fromRoom = Math.min(ri1, ri2);
+        const toRoom = Math.max(ri1, ri2);
+        const selectedRooms = roomNames.slice(fromRoom, toRoom + 1).filter(r => !isRoomDisabled(r));
+
+        if (selectedRooms.length === 0) { dragState = null; return; }
+
+        // Suppress bar onclick when actual drag occurred
+        if (!isSingleClick) {
+          window._dragOccurred = true;
+          setTimeout(() => window._dragOccurred = false, 200);
+        }
+
+        if (currentRole === 'admin') {
+          // Admin: open reservation modal with pre-fill
+          document.getElementById('form-room').value = selectedRooms[0];
+          document.getElementById('form-checkin').value = `2026-03-${String(fromDay).padStart(2,'0')}`;
+          document.getElementById('form-checkout').value = `2026-03-${String(toDay).padStart(2,'0')}`;
+          // If multiple rooms, switch to bulk tab and pre-fill
+          if (selectedRooms.length > 1) {
+            switchFormTab('bulk', document.querySelectorAll('#form-modal .border-b button')[1]);
+            populateBulkProgram();
+            fillBulkFromDrag(selectedRooms, fromDay, toDay);
+            const bulkInfo = document.getElementById('bulk-drag-info');
+            if (bulkInfo) bulkInfo.innerHTML = `<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700 mb-3">📝 선택된 숙소: <strong>${selectedRooms.join(', ')}</strong> (${selectedRooms.length}실) · 3/${fromDay}~3/${toDay}</div>`;
+          }
+          openModal('form-modal');
+        } else {
+          // Cleaning: open cleaning modal (existing behavior)
+          document.getElementById('clean-room-select').value = selectedRooms[0];
+          document.getElementById('clean-date-start').value = `2026-03-${String(fromDay).padStart(2,'0')}`;
+          document.getElementById('clean-date-end').value = `2026-03-${String(toDay).padStart(2,'0')}`;
+          const infoArea = document.getElementById('clean-drag-info');
+          if (infoArea) {
+            if (selectedRooms.length > 1) {
+              infoArea.innerHTML = `<div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700 mb-3">🧹 선택된 숙소: <strong>${selectedRooms.join(', ')}</strong> (${selectedRooms.length}실) · 3/${fromDay}~3/${toDay}</div>`;
+            } else {
+              infoArea.innerHTML = '';
+            }
+          }
+          openModal('cleaning-modal');
+        }
+        dragState = null;
+      });
+    }
+
+    function highlightCells() {
+      clearHighlight();
+      if (!dragState) return;
+      const fromDay = Math.min(dragState.startDay, dragState.currentDay);
+      const toDay = Math.max(dragState.startDay, dragState.currentDay);
+      const ri1 = roomNames.indexOf(dragState.startRoom);
+      const ri2 = roomNames.indexOf(dragState.currentRoom);
+      const fromRoom = Math.min(ri1, ri2);
+      const toRoom = Math.max(ri1, ri2);
+      const selectedRooms = roomNames.slice(fromRoom, toRoom + 1);
+
+      const cells = document.querySelectorAll('td.cell');
+      cells.forEach(c => {
+        const d = +c.dataset.day;
+        const rm = c.dataset.room;
+        if (d >= fromDay && d <= toDay && selectedRooms.includes(rm) && !isRoomDisabled(rm)) {
+          c.classList.add('drag-highlight');
+        }
+      });
+      const roomLabel = selectedRooms.length > 2
+        ? `${selectedRooms[0]}~${selectedRooms[selectedRooms.length-1]} (${selectedRooms.length}실)`
+        : selectedRooms.join(', ');
+      tooltip.textContent = currentRole === 'admin'
+        ? `📝 ${roomLabel} · 3/${fromDay}~3/${toDay} 예약 등록`
+        : `🧹 ${roomLabel} · 3/${fromDay}~3/${toDay} 청소 등록`;
+      tooltip.classList.remove('hidden');
+    }
+
+    function clearHighlight() {
+      document.querySelectorAll('.drag-highlight').forEach(c => c.classList.remove('drag-highlight'));
+    }
+
+    // ========== RENDER OPERATIONS PAGE ==========
+    function renderOpsAccommodation() {
+      const tbody = document.getElementById('ops-accommodation-tbody');
+      // Show program 2 data (문장의 방 3/10-3/13) for this week view
+      const weekRes = reservations.filter(r => r.pgm === '🖋️ 다시 앉는 문장의 방');
+      let html = '';
+      weekRes.forEach((r, i) => {
+        const bg = i % 2 === 1 ? ' bg-gray-50' : '';
+        const star = isPremium(r.room) ? '<span class="text-amber-500 ml-0.5">&#9733;</span>' : '';
+        const beddingYo = (r.room === '산내음' && r.count === 2) ? '<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs">1장</span>' : '<span class="text-gray-400">-</span>';
+        const beddingSet = (r.room === '산내음' && r.count === 2) ? '<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs">1세트</span>' : '<span class="text-gray-400">-</span>';
+        const pgmDot = `<span class="inline-block w-2 h-2 rounded-full mr-1" style="background:${pgmColor(r.pgm)}"></span>`;
+        html += `<tr class="border-t${bg}"><td class="px-4 py-3 font-medium">${r.room}${star}</td><td class="px-4 py-3 text-sm">${pgmDot}${pgmLabel(r.pgm)}</td><td class="text-center">${r.count}명</td><td class="text-center">${beddingYo}</td><td class="text-center">${beddingSet}</td><td class="text-center text-gray-400">-</td><td class="text-center">3/${r.ci}</td><td class="text-center">3/${r.co}</td></tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
+    function renderOpsCleaning() {
+      const tbody = document.getElementById('ops-cleaning-tbody');
+      // cleaningSchedule 기반으로 테이블 렌더링 (이번 주 기준 필터)
+      const cleanings = cleaningSchedule
+        .filter(c => c.day >= 2 && c.day <= 15)
+        .map(c => ({ room: c.room, day: c.day, date: `3/${c.day}`, person: c.person, done: c.done }));
+
+      let html = '';
+      cleanings.forEach((c, i) => {
+        const bg = i % 2 === 1 ? ' bg-gray-50' : '';
+        const star = isPremium(c.room) ? '<span class="text-amber-500 ml-0.5">&#9733;</span>' : '';
+        const statusBadge = c.done
+          ? `<span class="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 cursor-pointer" title="클릭하여 상태 변경" onclick="toggleCleanStatus('${c.room}',${c.day})">청소완료</span>`
+          : `<span class="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 cursor-pointer" title="클릭하여 상태 변경" onclick="toggleCleanStatus('${c.room}',${c.day})">청소예정</span>`;
+        html += `<tr class="border-t${bg}"><td class="px-4 py-3 font-medium">${c.room}${star}</td><td class="text-center">${c.date}</td><td class="text-center">${c.person}</td><td class="text-center">${statusBadge}</td></tr>`;
+      });
+      if (tbody) tbody.innerHTML = html;
+
+      // Also populate calendar page cleaning tbody
+      const calTbody = document.getElementById('cal-cleaning-tbody');
+      if (calTbody) calTbody.innerHTML = html;
+
+      // Also populate cleaning modal room select
+      const sel = document.getElementById('clean-room-select');
+      if (sel) sel.innerHTML = '<option>선택</option>' + rooms.filter(r => !isRoomDisabled(r.name)).map(r => `<option>${r.name}${isPremium(r.name) ? ' ★' : ''}</option>`).join('');
+    }
+
+    // ========== TOGGLE CLEANING STATUS ==========
+    function toggleCleanStatus(room, day) {
+      const item = cleaningSchedule.find(c => c.room === room && c.day === day);
+      if (!item) return;
+      // Find the full span (consecutive days with same done status) and toggle all together
+      const targetDone = item.done;
+      const roomCleans = cleaningSchedule.filter(c => c.room === room).sort((a, b) => a.day - b.day);
+      // Expand left
+      let startDay = day;
+      while (roomCleans.some(c => c.day === startDay - 1 && c.done === targetDone)) startDay--;
+      // Expand right
+      let endDay = day;
+      while (roomCleans.some(c => c.day === endDay + 1 && c.done === targetDone)) endDay++;
+      // Toggle all days in this span
+      roomCleans.filter(c => c.day >= startDay && c.day <= endDay && c.done === targetDone)
+        .forEach(c => c.done = !c.done);
+      renderOpsCleaning();
+      renderMonthly();
+      renderWeekly();
+    }
+
+    // ========== POPULATE FORM SELECTS ==========
+    function populateFormSelects() {
+      const roomSel = document.getElementById('form-room');
+      const pgmSel = document.getElementById('form-program');
+      roomSel.innerHTML = '<option>선택</option>' + rooms.filter(r => !isRoomDisabled(r.name)).map(r => `<option value="${r.name}">${r.name}${isPremium(r.name) ? ' ★' : ''}</option>`).join('');
+      pgmSel.innerHTML = '<option>선택</option>' + Object.keys(pgmColors).map(k => `<option>${k.split(' ')[0]} ${pgmColors[k].label}</option>`).join('');
+    }
+
+    // ========== PROGRAM MANAGEMENT ==========
+    let selectedPgmColor = '#93c5fd';
+    function selectPgmColor(el, color) {
+      selectedPgmColor = color;
+      document.querySelectorAll('#pgm-color-picker > div').forEach(d => { d.classList.remove('ring-2','ring-offset-1','ring-blue-400'); });
+      el.classList.add('ring-2','ring-offset-1','ring-blue-400');
+    }
+
+    function renderPgmList() {
+      const container = document.getElementById('pgm-list');
+      const pgms = Object.entries(pgmColors);
+      if (pgms.length === 0) { container.innerHTML = '<p class="text-gray-400 text-sm">등록된 프로그램이 없습니다.</p>'; return; }
+      container.innerHTML = pgms.map(([key, val]) => {
+        const emoji = key.split(' ')[0];
+        const fullName = key;
+        const scheduleInfo = val.schedule ? `<span class="text-xs text-gray-500">${val.schedule} · ${val.nights}</span>` : '';
+        return `<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+          <div class="w-4 h-4 rounded-full flex-shrink-0" style="background:${val.bg}"></div>
+          <div class="flex-1 min-w-0"><div class="font-medium text-sm truncate">${fullName}</div>${scheduleInfo}</div>
+          <button class="text-blue-500 hover:text-blue-700 text-sm flex-shrink-0" onclick="editPgm('${fullName.replace(/'/g,"\\'")}')">수정</button>
+          <button class="text-red-400 hover:text-red-600 text-sm flex-shrink-0" onclick="deletePgm('${fullName.replace(/'/g,"\\'")}')">삭제</button>
+        </div>`;
+      }).join('');
+    }
+
+    function editPgm(name) {
+      const pgm = pgmColors[name];
+      if (!pgm) return;
+      document.getElementById('pgm-modal-title').textContent = '프로그램 수정';
+      document.getElementById('pgm-name').value = name;
+      document.getElementById('pgm-short').value = pgm.label;
+      document.getElementById('pgm-emoji').value = name.split(' ')[0];
+      selectedPgmColor = pgm.bg;
+      document.querySelectorAll('#pgm-color-picker > div').forEach(d => {
+        d.classList.remove('ring-2','ring-offset-1','ring-blue-400');
+        if (d.style.background === pgm.bg || d.style.backgroundColor === pgm.bg) d.classList.add('ring-2','ring-offset-1','ring-blue-400');
+      });
+      openModal('pgm-modal');
+    }
+
+    function deletePgm(name) {
+      if (confirm(`"${name}" 프로그램을 삭제하시겠습니까?`)) {
+        delete pgmColors[name];
+        renderPgmList();
+      }
+    }
+
+    // ========== ROOM MANAGEMENT ==========
+    const disabledRooms = ['연꽃'];  // 고장/사용불가 숙소
+    function isRoomDisabled(name) { return disabledRooms.includes(name); }
+
+    let editingRoom = null; // 현재 편집 중인 숙소명
+    function renderRoomList() {
+      const container = document.getElementById('room-list');
+      container.innerHTML = rooms.map(r => {
+        const disabled = isRoomDisabled(r.name);
+        const star = isPremium(r.name) ? '<span class="text-amber-500">&#9733;</span>' : '';
+        const badge = disabled
+          ? '<span class="px-2 py-0.5 rounded text-xs bg-red-100 text-red-600">사용불가</span>'
+          : '<span class="px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-600">사용가능</span>';
+        const toggleBtn = disabled
+          ? `<button class="text-emerald-500 hover:text-emerald-700 text-sm" onclick="toggleRoomStatus('${r.name}',false)">활성화</button>`
+          : `<button class="text-red-400 hover:text-red-600 text-sm" onclick="toggleRoomStatus('${r.name}',true)">비활성화</button>`;
+
+        // 편집 모드
+        if (editingRoom === r.name) {
+          const [bedType, capacity] = r.type.split(' / ');
+          return `<div class="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <span class="font-medium whitespace-nowrap">${r.name} ${star}</span>
+            <select id="edit-bed-${r.name}" class="border rounded px-2 py-1 text-sm bg-white">
+              <option value="Q" ${bedType==='Q'?'selected':''}>Q (퀸)</option>
+              <option value="SS" ${bedType==='SS'?'selected':''}>SS (싱글싱글)</option>
+              <option value="S" ${bedType==='S'?'selected':''}>S (싱글)</option>
+              <option value="K" ${bedType==='K'?'selected':''}>K (킹)</option>
+              <option value="D" ${bedType==='D'?'selected':''}>D (더블)</option>
+            </select>
+            <select id="edit-cap-${r.name}" class="border rounded px-2 py-1 text-sm bg-white">
+              <option value="1인" ${capacity==='1인'?'selected':''}>1인</option>
+              <option value="2인" ${capacity==='2인'?'selected':''}>2인</option>
+              <option value="3인" ${capacity==='3인'?'selected':''}>3인</option>
+              <option value="4인" ${capacity==='4인'?'selected':''}>4인</option>
+            </select>
+            <div class="flex gap-1 ml-auto">
+              <button class="px-2.5 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600" onclick="saveRoomEdit('${r.name}')">저장</button>
+              <button class="px-2.5 py-1 bg-gray-200 text-gray-600 rounded text-sm hover:bg-gray-300" onclick="cancelRoomEdit()">취소</button>
+            </div>
+          </div>`;
+        }
+
+        return `<div class="flex items-center gap-3 p-3 ${disabled ? 'bg-red-50 opacity-60' : 'bg-gray-50'} rounded-lg">
+          <span class="font-medium flex-1">${r.name} ${star} <span class="text-gray-400 text-xs">${r.type}</span></span>
+          ${badge}
+          <button class="text-gray-400 hover:text-blue-500 text-sm" onclick="startRoomEdit('${r.name}')" title="숙소 정보 수정">✏️</button>
+          ${toggleBtn}
+        </div>`;
+      }).join('');
+    }
+
+    function startRoomEdit(name) {
+      editingRoom = name;
+      renderRoomList();
+    }
+    function cancelRoomEdit() {
+      editingRoom = null;
+      renderRoomList();
+    }
+    function saveRoomEdit(name) {
+      const room = rooms.find(r => r.name === name);
+      if (!room) return;
+      const bed = document.getElementById('edit-bed-' + name).value;
+      const cap = document.getElementById('edit-cap-' + name).value;
+      room.type = bed + ' / ' + cap;
+      editingRoom = null;
+      renderRoomList();
+      // 캘린더에도 반영
+      renderMonthly();
+      if (document.getElementById('view-weekly').classList.contains('active')) renderWeekly();
+    }
+
+    function toggleRoomStatus(name, disable) {
+      if (disable) {
+        if (!disabledRooms.includes(name)) disabledRooms.push(name);
+      } else {
+        const idx = disabledRooms.indexOf(name);
+        if (idx > -1) disabledRooms.splice(idx, 1);
+      }
+      renderRoomList();
+      populateFormSelects(); // Update form dropdowns
+    }
+
+    // ========== UI HELPERS ==========
+    function showPage(name) {
+      document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+      document.getElementById('page-' + name).classList.remove('hidden');
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      // 해당 탭을 찾아서 active 처리 (event 의존 제거)
+      const tabMap = { calendar: 0, reservations: 1, dashboard: 2, cleanguide: 3 };
+      const tabs = document.querySelectorAll('.nav-tab');
+      const idx = tabMap[name];
+      if (idx !== undefined && tabs[idx]) tabs[idx].classList.add('active');
+    }
+
+    function switchView(view, btn) {
+      document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('view-monthly').classList.toggle('hidden', view !== 'monthly');
+      document.getElementById('view-weekly').classList.toggle('hidden', view !== 'weekly');
+      document.getElementById('period-nav-monthly').classList.toggle('hidden', view !== 'monthly');
+      document.getElementById('period-nav-weekly').classList.toggle('hidden', view !== 'weekly');
+    }
+
+    function switchFormTab(tab, btn) {
+      document.querySelectorAll('#form-modal .border-b button').forEach(b => { b.classList.remove('tab-active'); b.classList.add('text-gray-500'); });
+      btn.classList.add('tab-active'); btn.classList.remove('text-gray-500');
+      document.getElementById('form-individual').classList.toggle('hidden', tab !== 'individual');
+      document.getElementById('form-bulk').classList.toggle('hidden', tab !== 'bulk');
+      if (tab === 'bulk') {
+        populateBulkProgram();
+        if (document.getElementById('bulk-guest-list').children.length === 0) {
+          addBulkGuest();
+        }
+      }
+    }
+
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    // ========== CLEANING GUIDE ACCORDION ==========
+    const cleanGuideData = [
+      { icon: '🏡', title: '마당', borderColor: '#2563eb', items: [
+        { area: '마루 위', task: '쓸기 및 물걸레', level: '외관으로 봤을 때 깨끗하고, 맨발로 딛을 때 이물감이 없음' },
+      ]},
+      { icon: '🧹', title: '공통', borderColor: '#2563eb', items: [
+        { area: '쓰레기통', task: '봉투 교체 및 내외부 이물질 제거', level: '이전에 사용했던 봉투가 아니며 쓰레기가 남아있지 않기' },
+        { area: '바닥', task: '쓸기 및 물걸레', level: '침대 밑, 매트리스 옆 등도 꼼꼼하게 / 벌레 사체 없어야함' },
+        { area: '창문', task: '쓸기 및 물걸레', level: '거미줄, 벌레 사체 등이 보이지 않기' },
+      ]},
+      { icon: '🚿', title: '화장실', borderColor: '#2563eb', items: [
+        { area: '세면대·수전·벽면·선반', task: '곰팡이, 물때, 머리카락 등 제거', level: '' },
+        { area: '변기', task: '곰팡이, 물때, 머리카락 등 제거', level: '' },
+        { area: '배수구', task: '곰팡이, 물때, 머리카락 등 제거', level: '' },
+        { area: '바닥', task: '청소 후 물기 제거', level: '' },
+      ]},
+      { icon: '🍳', title: '주방', borderColor: '#2563eb', items: [
+        { area: '전기포트', task: '이물질이 보이지 않게 씻기', level: '물이 비워져 있어야 하고 깨끗해야 함' },
+        { area: '인덕션', task: '먼지 및 음식물 흔적제거', level: '' },
+        { area: '전자레인지', task: '먼지 및 음식물 흔적 제거, 문 열어서 환기', level: '' },
+        { area: '냉장고', task: '내부 전체 비우기, 닦기', level: '열었을 때 냄새가 나지 않고, 깨끗함' },
+        { area: '싱크대', task: '배수구, 수전 등 음식물 및 물때 제거', level: '이전 사용자 흔적 X' },
+        { area: '식탁 및 의자', task: '먼지 및 음식물 자국 제거', level: '이전 사용자 흔적 X' },
+        { area: '음식물용 쓰레기 봉투', task: '음식물용 쓰레기 봉투 여분 비치', level: '여분 봉투가 보이도록 수전 옆에 두기' },
+      ]},
+      { icon: '🛏', title: '침실', borderColor: '#2563eb', items: [
+        { area: 'TV', task: '본체 앞, 뒤 먼지 제거', level: '' },
+        { area: 'TV거치대/거실장', task: '위, 아래, 선반 사이 먼지 제거', level: '' },
+        { area: '침대 프레임', task: '프레임 사이, 밑 먼지 제거', level: '' },
+        { area: '매트리스', task: '머리카락, 먼지 제거', level: '' },
+        { area: '에어컨', task: '날개, 본체 외부 먼지 제거', level: '' },
+      ]},
+    ];
+
+    function renderCleanGuide() {
+      const container = document.getElementById('clean-guide-accordion');
+      container.innerHTML = cleanGuideData.map((cat, ci) => {
+        const itemsHtml = cat.items.map((item, ii) => {
+          const levelHtml = item.level ? `<span class="text-sm text-gray-400 ml-1">· ${item.level}</span>` : '';
+          return `<label class="flex items-start gap-2 py-2 px-3 rounded hover:bg-gray-50 cursor-pointer">
+            <input type="checkbox" class="mt-1 accent-green-600" onchange="updateGuideProgress(${ci})">
+            <div class="flex-1"><span class="text-sm font-bold text-blue-600">${item.area}</span><span class="text-sm font-bold text-gray-900 ml-2">${item.task}</span>${levelHtml}</div>
+          </label>`;
+        }).join('');
+        return `<div class="bg-white rounded-lg border overflow-hidden">
+          <button class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50" onclick="toggleGuideSection(this)" style="border-left:4px solid ${cat.borderColor}">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">${cat.icon}</span>
+              <span class="font-semibold text-sm">${cat.title}</span>
+              <span class="text-xs text-gray-400 guide-progress" data-cat="${ci}">0/${cat.items.length}</span>
+            </div>
+            <svg class="w-4 h-4 text-gray-400 transition-transform guide-chevron" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"/></svg>
+          </button>
+          <div class="guide-items hidden border-t px-2 py-1 divide-y divide-gray-100">${itemsHtml}</div>
+        </div>`;
+      }).join('');
+    }
+
+    function toggleGuideSection(btn) {
+      const items = btn.nextElementSibling;
+      const chevron = btn.querySelector('.guide-chevron');
+      items.classList.toggle('hidden');
+      chevron.style.transform = items.classList.contains('hidden') ? '' : 'rotate(180deg)';
+    }
+
+    function updateGuideProgress(catIndex) {
+      const container = document.querySelectorAll('#clean-guide-accordion > div')[catIndex];
+      const checks = container.querySelectorAll('input[type="checkbox"]');
+      const done = [...checks].filter(c => c.checked).length;
+      container.querySelector('.guide-progress').textContent = `${done}/${checks.length}`;
+    }
+
+    // ========== INIT ==========
+    // Restore login from sessionStorage
+    const savedRole = sessionStorage.getItem('loggedInRole');
+    if (savedRole && (savedRole === 'admin' || savedRole === 'cleaning')) {
+      currentRole = savedRole;
+      loggedInAs = savedRole;
+      document.getElementById('login-modal').classList.add('hidden');
+      applyRole();
+    }
+
+    // Dynamic legend
+    const legendEl = document.getElementById('pgm-legend');
+    if (legendEl) {
+      legendEl.innerHTML = '<span><span class="inline-block w-3 h-3 rounded mr-1" style="background:#d1d5db"></span>퇴실완료</span> <span><span class="inline-block w-3 h-3 rounded mr-1" style="background:#fef3c7"></span>청소예정</span> <span><span class="inline-block w-3 h-3 rounded mr-1" style="background:#d1fae5"></span>청소완료</span> <span>🔴 추가침구</span>';
+    }
+    buildCleaningSchedule();
+    renderMonthly();
+    renderWeekly();
+    renderReservationsList();
+    renderCleanGuide();
+    renderOpsAccommodation();
+    renderOpsCleaning();
+    populateFormSelects();
+    renderPgmList();
+    renderRoomList();
+    document.getElementById('room-count').textContent = `총 ${rooms.length}실`;
+
+    // ── 대시보드 통계 뷰 ──
+    let dashYear = 2026;
+    let dashView = 'monthly';
+    const dashMonthlyData = {
+      2026: {months:[72,85,90,0,0,0,0,0,0,0,0,0], currentMonth:3,
+             gender:{3:{f:61,m:29}}}
+    };
+    function getDashData(yr){
+      return dashMonthlyData[yr] || {months:[0,0,0,0,0,0,0,0,0,0,0,0], currentMonth:null, gender:{}};
+    }
+    function changeDashYear(d){
+      dashYear += d;
+      if(dashYear < 2026) dashYear = 2026;
+      document.getElementById('dash-year').textContent = dashYear;
+      renderDashView();
+    }
+    function switchDashView(v){
+      dashView = v;
+      document.getElementById('btn-monthly').className = v==='monthly'
+        ? 'px-4 py-1.5 rounded-md text-sm font-medium bg-white shadow text-blue-600'
+        : 'px-4 py-1.5 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700';
+      document.getElementById('btn-annual').className = v==='annual'
+        ? 'px-4 py-1.5 rounded-md text-sm font-medium bg-white shadow text-blue-600'
+        : 'px-4 py-1.5 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700';
+      document.getElementById('dash-view-monthly').classList.toggle('hidden', v!=='monthly');
+      document.getElementById('dash-view-annual').classList.toggle('hidden', v!=='annual');
+      renderDashView();
+    }
+    function makeDonut(total,f,m,label){
+      if(total===0) return '<div class="text-gray-400 text-sm py-10 text-center">데이터 없음</div>';
+      const circ = 2*Math.PI*70;
+      const fp = f/total, mp = m/total;
+      const fd = circ*fp, md = circ*mp;
+      return `<svg viewBox="0 0 200 200" width="140" height="140">
+        <circle cx="100" cy="100" r="70" fill="none" stroke="#e5e7eb" stroke-width="30"/>
+        <circle cx="100" cy="100" r="70" fill="none" stroke="#f472b6" stroke-width="30" stroke-dasharray="${fd} ${circ-fd}" stroke-dashoffset="110" stroke-linecap="round"/>
+        <circle cx="100" cy="100" r="70" fill="none" stroke="#60a5fa" stroke-width="30" stroke-dasharray="${md} ${circ-md}" stroke-dashoffset="${-(110-fd+circ)%circ-fd+110-circ}" stroke-linecap="round"/>
+        <text x="100" y="95" text-anchor="middle" fill="#374151" font-size="14" font-weight="bold">${total}명</text>
+        <text x="100" y="115" text-anchor="middle" fill="#9ca3af" font-size="11">${label}</text>
+      </svg>`;
+    }
+    function makeLegend(f,m,total){
+      if(total===0) return '';
+      const fp=Math.round(f/total*100), mp=100-fp;
+      return `<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-pink-400"></span>여 ${f}명 (${fp}%)</div>
+              <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-400"></span>남 ${m}명 (${mp}%)</div>`;
+    }
+    function renderDashView(){
+      const data = getDashData(dashYear);
+      const ml = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+      // 월별 뷰
+      document.getElementById('dash-monthly-title').textContent = dashYear;
+      let grid = '';
+      ml.forEach((m,i)=>{
+        const v = data.months[i];
+        const isCur = data.currentMonth === i+1;
+        if(v > 0){
+          grid += `<div class="text-center p-3 rounded-lg ${isCur?'bg-blue-100 border border-blue-200 ring-2 ring-blue-400':'bg-blue-50 border border-blue-100'}">
+            <div class="text-xs ${isCur?'text-blue-700 font-medium':'text-gray-500'} mb-1">${m}</div>
+            <div class="text-xl font-bold ${isCur?'text-blue-700':'text-blue-600'}">${v}</div></div>`;
+        } else {
+          grid += `<div class="text-center p-3 rounded-lg bg-gray-50 border border-gray-100">
+            <div class="text-xs text-gray-400 mb-1">${m}</div>
+            <div class="text-xl font-bold text-gray-300">—</div></div>`;
+        }
+      });
+      document.getElementById('dash-monthly-grid').innerHTML = grid;
+      // 월별 성비 (현재월 기준)
+      const cm = data.currentMonth;
+      const mg = cm && data.gender[cm] ? data.gender[cm] : null;
+      document.getElementById('dash-month-gender-title').textContent = mg ? `👥 ${cm}월 성비` : '👥 성비';
+      if(mg){
+        const t=mg.f+mg.m;
+        document.getElementById('dash-month-gender-chart').innerHTML = makeDonut(t,mg.f,mg.m,`${dashYear}.${String(cm).padStart(2,'0')}`);
+        document.getElementById('dash-month-gender-legend').innerHTML = makeLegend(mg.f,mg.m,t);
+      } else {
+        document.getElementById('dash-month-gender-chart').innerHTML = '<div class="text-gray-400 text-sm py-10 text-center">데이터 없음</div>';
+        document.getElementById('dash-month-gender-legend').innerHTML = '';
+      }
+      // 연간 뷰
+      document.getElementById('dash-annual-title').textContent = dashYear;
+      const total = data.months.reduce((a,b)=>a+b,0);
+      const maxV = Math.max(...data.months,1);
+      let bars = '';
+      ml.forEach((m,i)=>{
+        const v = data.months[i];
+        const isCur = data.currentMonth === i+1;
+        const pct = v>0 ? Math.max(v/maxV*100, 8) : 5;
+        if(v>0){
+          bars += `<div class="flex-1 flex flex-col items-center justify-end h-full">
+            <div class="w-full ${isCur?'bg-blue-600':'bg-blue-400'} rounded-t" style="height:${pct}%"></div>
+            <div class="text-xs ${isCur?'text-blue-700 font-medium':'text-gray-500'} mt-1">${m}</div>
+            <div class="text-xs ${isCur?'font-bold text-blue-700':'font-medium'}">${v}</div></div>`;
+        } else {
+          bars += `<div class="flex-1 flex flex-col items-center justify-end h-full">
+            <div class="w-full bg-gray-100 rounded-t" style="height:5%"></div>
+            <div class="text-xs text-gray-400 mt-1">${m}</div></div>`;
+        }
+      });
+      document.getElementById('dash-annual-bar').innerHTML = bars;
+      document.getElementById('dash-annual-total').textContent = total+'명';
+      // 연간 성비
+      document.getElementById('dash-annual-gender-title').textContent = `👥 ${dashYear} 연간 성비`;
+      let tf=0,tm=0;
+      Object.values(data.gender).forEach(g=>{tf+=g.f;tm+=g.m;});
+      const tt=tf+tm;
+      document.getElementById('dash-annual-gender-chart').innerHTML = makeDonut(tt,tf,tm,dashYear+'년');
+      document.getElementById('dash-annual-gender-legend').innerHTML = makeLegend(tf,tm,tt);
+    }
+    renderDashView();
+
+    // ── 일괄 등록 게스트 목록 ──
+    let bulkGuestCount = 0;
+    function roomOptionsHtml(selected) {
+      return rooms.map(r => `<option value="${r.name}" ${r.name===selected?'selected':''}>${r.name}</option>`).join('');
+    }
+    function addBulkGuest(roomName) {
+      bulkGuestCount++;
+      const list = document.getElementById('bulk-guest-list');
+      const div = document.createElement('div');
+      div.className = 'bg-white border rounded-lg p-3 space-y-2';
+      div.id = 'bulk-guest-' + bulkGuestCount;
+      div.innerHTML = `<div class="flex gap-2 items-end">
+        <div class="flex-1"><label class="block text-xs text-gray-500 mb-1">#${bulkGuestCount} 성함 *</label><input type="text" class="border rounded w-full px-2 py-1.5 text-sm" placeholder="이름"></div>
+        <div class="w-24"><label class="block text-xs text-gray-500 mb-1">숙소</label><select class="border rounded w-full px-1 py-1.5 text-sm bg-white">${roomOptionsHtml(roomName||'')}</select></div>
+        <button class="text-red-400 hover:text-red-600 pb-1" onclick="this.closest('[id^=bulk-guest]').remove()">✕</button>
+      </div>
+      <div class="flex gap-2 items-end">
+        <div class="flex-1"><label class="block text-xs text-gray-500 mb-1">전화번호</label><input type="text" class="border rounded w-full px-2 py-1.5 text-sm" placeholder="010-0000-0000"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">성별</label><div class="flex gap-3 py-1"><label class="flex items-center gap-1 text-sm"><input type="radio" name="bgender-${bulkGuestCount}" checked> 남</label><label class="flex items-center gap-1 text-sm"><input type="radio" name="bgender-${bulkGuestCount}"> 여</label></div></div>
+      </div>
+      <div class="flex gap-2 items-end">
+        <div class="flex-1"><label class="block text-xs text-gray-500 mb-1">추가 요</label><select class="border rounded w-full px-1 py-1.5 text-sm bg-white"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+        <div class="flex-1"><label class="block text-xs text-gray-500 mb-1">추가 이불</label><select class="border rounded w-full px-1 py-1.5 text-sm bg-white"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+        <div class="flex-1"><label class="block text-xs text-gray-500 mb-1">추가 베개</label><select class="border rounded w-full px-1 py-1.5 text-sm bg-white"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+      </div>`;
+      list.appendChild(div);
+    }
+    function fillBulkFromDrag(selectedRooms, fromDay, toDay) {
+      // Reset
+      bulkGuestCount = 0;
+      document.getElementById('bulk-guest-list').innerHTML = '';
+      document.getElementById('bulk-checkin').value = `2026-03-${String(fromDay).padStart(2,'0')}`;
+      document.getElementById('bulk-checkout').value = `2026-03-${String(toDay).padStart(2,'0')}`;
+      // Add one guest per selected room
+      selectedRooms.forEach(r => addBulkGuest(r));
+    }
+    // Populate bulk program select
+    function populateBulkProgram() {
+      const sel = document.getElementById('bulk-program');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">선택</option>' + Object.keys(pgmColors).map(k => `<option>${k.split(' ')[0]} ${pgmColors[k].label}</option>`).join('');
+    }
+
+    // ── 게스트 폼 동적 생성 ──
+    function updateGuestForms() {
+      const count = parseInt(document.getElementById('form-guest-count').value) || 1;
+      const area = document.getElementById('form-guests-area');
+      let html = '';
+      for (let i = 1; i <= count; i++) {
+        const isFirst = i === 1;
+        html += `<div class="${isFirst ? 'bg-blue-50' : 'bg-gray-50'} rounded-lg p-3 space-y-3 ${i < count ? 'mb-2' : ''}" id="guest-form-${i}">
+          <div class="text-sm font-medium ${isFirst ? 'text-blue-700' : 'text-gray-600'}">👤 게스트 ${i}${isFirst ? ' (대표)' : ''}</div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="block text-xs text-gray-500 mb-1">성함${isFirst ? ' *' : ''}</label><input type="text" class="border rounded w-full px-3 py-1.5 text-sm" placeholder="이름"></div>
+            <div><label class="block text-xs text-gray-500 mb-1">전화번호</label><input type="text" class="border rounded w-full px-3 py-1.5 text-sm" placeholder="010-0000-0000"></div>
+          </div>
+          <div><label class="block text-xs text-gray-500 mb-1">성별</label><div class="flex gap-4"><label class="flex items-center gap-1.5 text-sm"><input type="radio" name="gender-${i}" checked> 남자</label><label class="flex items-center gap-1.5 text-sm"><input type="radio" name="gender-${i}"> 여자</label></div></div>
+        </div>`;
+      }
+      area.innerHTML = html;
+    }
+  </script>
+</body>
+</html>
