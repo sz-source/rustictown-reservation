@@ -765,7 +765,7 @@
       { name: '매화', type: 'Q / 1인' },
       { name: '풀내음', type: 'Q / 1인' }, { name: '들내음', type: 'Q / 1인' },
       { name: '토란', type: 'Q / 1인' }, { name: '산내음', type: 'Q / 1인' },
-      { name: '한옥', type: 'Q / 1인' }, { name: '연꽃', type: 'Q / 1인' },
+      { name: '연꽃', type: 'Q / 1인' },
       { name: '하이파이브 201', type: 'Q / 1인' }, { name: '하이파이브 202', type: 'Q / 1인' },
       { name: '하이파이브 203', type: 'Q / 1인' }, { name: '하이파이브 204', type: 'Q / 1인' },
     ];
@@ -900,7 +900,6 @@
       { guest: '승은', room: '매화', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
       { guest: '길성호', room: '풀내음', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
       { guest: '안나래', room: '토란', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
-      { guest: 'Test김희정', room: '한옥', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
       { guest: '김은희', room: '하이파이브 201', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
       { guest: '이다혜', room: '하이파이브 202', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
       { guest: '조정화', room: '하이파이브 203', ci: 3, co: 7, pgm: '🐿️ 앗! 도시의 다람쥐가', count: 1, status: '퇴실완료' },
@@ -1589,9 +1588,7 @@
             switchFormTab('bulk', document.querySelectorAll('#form-tabs button')[1]);
             populateBulkProgram();
             fillBulkFromMultiSelections(allSelections);
-            const bulkInfo = document.getElementById('bulk-drag-info');
-            const totalRooms = allSelections.reduce((s, sel) => s + sel.selectedRooms.length, 0);
-            if (bulkInfo) bulkInfo.innerHTML = `<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700 mb-3">📝 ${allSelections.length}개 영역, 총 <strong>${totalRooms}</strong>건 선택됨</div>`;
+            showBulkSelectionInfo(allSelections);
           } else {
             // 단일 선택
             document.getElementById('form-room').value = selectedRooms[0];
@@ -1735,9 +1732,7 @@
             switchFormTab('bulk', document.querySelectorAll('#form-tabs button')[1]);
             populateBulkProgram();
             fillBulkFromMultiSelections(allSelections);
-            const bulkInfo = document.getElementById('bulk-drag-info');
-            const totalRooms = allSelections.reduce((s, sel) => s + sel.selectedRooms.length, 0);
-            if (bulkInfo) bulkInfo.innerHTML = `<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700 mb-3">📝 ${allSelections.length}개 영역, 총 <strong>${totalRooms}</strong>건 선택됨</div>`;
+            showBulkSelectionInfo(allSelections);
           } else {
             document.getElementById('form-room').value = selectedRooms[0];
             document.getElementById('form-checkin').value = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(fromDay).padStart(2,'0')}`;
@@ -2909,6 +2904,16 @@
       });
     }
 
+    // 벌크 선택 안내 배너 (숙소명 포함)
+    function showBulkSelectionInfo(selections) {
+      const bulkInfo = document.getElementById('bulk-drag-info');
+      if (!bulkInfo) return;
+      const allRooms = selections.flatMap(sel => sel.selectedRooms);
+      const totalRooms = allRooms.length;
+      const roomList = allRooms.join(', ');
+      bulkInfo.innerHTML = `<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700 mb-3">📝 ${selections.length}개 영역, 총 <strong>${totalRooms}</strong>건 선택됨<br><span class="text-blue-500 text-xs mt-1 inline-block">🏠 ${roomList}</span></div>`;
+    }
+
     // 다중 선택 배지 업데이트
     function updateMultiSelectBadge() {
       const badge = document.getElementById('multi-select-badge');
@@ -2939,9 +2944,7 @@
           switchFormTab('bulk', document.querySelectorAll('#form-tabs button')[1]);
           populateBulkProgram();
           fillBulkFromMultiSelections(allSelections);
-          const bulkInfo = document.getElementById('bulk-drag-info');
-          const totalRooms = allSelections.reduce((s, sel) => s + sel.selectedRooms.length, 0);
-          if (bulkInfo) bulkInfo.innerHTML = `<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700 mb-3">📝 ${allSelections.length}개 영역, 총 <strong>${totalRooms}</strong>건 선택됨</div>`;
+          showBulkSelectionInfo(allSelections);
         } else {
           const sel = allSelections[0];
           document.getElementById('form-room').value = sel.selectedRooms[0];
@@ -2971,9 +2974,7 @@
           switchFormTab('bulk', document.querySelectorAll('#form-tabs button')[1]);
           populateBulkProgram();
           fillBulkFromMultiSelections(multiSelections);
-          const bulkInfo = document.getElementById('bulk-drag-info');
-          const totalRooms = multiSelections.reduce((s, sel) => s + sel.selectedRooms.length, 0);
-          if (bulkInfo) bulkInfo.innerHTML = `<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700 mb-3">📝 ${multiSelections.length}개 영역, 총 <strong>${totalRooms}</strong>건 선택됨</div>`;
+          showBulkSelectionInfo(multiSelections);
           multiSelections = [];
           clearHighlight();
           updateMultiSelectBadge();
