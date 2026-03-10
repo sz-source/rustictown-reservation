@@ -1382,8 +1382,8 @@
               <span class="text-gray-500 text-sm w-20 shrink-0">성별</span>
               <select id="detail-edit-gender" class="flex-1 border rounded px-2 py-1.5 text-sm bg-white">
                 <option value="">미지정</option>
-                <option value="남" ${(res.gender || '').includes('남') ? 'selected' : ''}>남</option>
-                <option value="여" ${(res.gender || '').includes('여') ? 'selected' : ''}>여</option>
+                <option value="남자" ${(res.gender || '').includes('남') ? 'selected' : ''}>남자</option>
+                <option value="여자" ${(res.gender || '').includes('여') ? 'selected' : ''}>여자</option>
               </select>
             </div>
             <div class="flex items-center gap-2">
@@ -1431,7 +1431,7 @@
       const origPgmKey = _findPgmKey(_detailRes.pgm);
       if (newPgm !== origPgmKey) updates.program = newPgm;
       if (newPhone !== (_detailRes.phone || '')) updates.phone = newPhone;
-      const origGender = (_detailRes.gender || '').includes('남') ? '남' : (_detailRes.gender || '').includes('여') ? '여' : '';
+      const origGender = (_detailRes.gender || '').includes('남') ? '남자' : (_detailRes.gender || '').includes('여') ? '여자' : '';
       if (newGender !== origGender) updates.gender = newGender;
       if (newOrg !== (_detailRes.org || '')) updates.org = newOrg;
 
@@ -1987,7 +1987,7 @@
     function populateFormSelects() {
       const roomSel = document.getElementById('form-room');
       const pgmSel = document.getElementById('form-program');
-      roomSel.innerHTML = '<option>선택</option>' + rooms.filter(r => !isRoomDisabled(r.name)).map(r => `<option value="${r.name}">${r.name}${isPremium(r.name) ? ' ★' : ''}</option>`).join('');
+      roomSel.innerHTML = '<option value="">선택</option>' + rooms.filter(r => !isRoomDisabled(r.name)).map(r => `<option value="${r.name}">${r.name}${isPremium(r.name) ? ' ★' : ''}</option>`).join('');
       pgmSel.innerHTML = '<option value="">선택</option>' + Object.keys(pgmColors).map(k => `<option value="${k}">${k.split(' ')[0]} ${pgmColors[k].label}</option>`).join('');
     }
 
@@ -2016,7 +2016,7 @@
       const bulkInfo = document.getElementById('bulk-drag-info');
       if (bulkInfo) bulkInfo.innerHTML = '';
       // 폼 필드 초기화
-      document.getElementById('form-room').value = '선택';
+      document.getElementById('form-room').value = '';
       document.getElementById('form-checkin').value = '';
       document.getElementById('form-checkout').value = '';
       document.getElementById('form-program').selectedIndex = 0;
@@ -2145,7 +2145,7 @@
       savePgmToStorage();
       closeModal('pgm-modal');
       renderPgmList();
-      initReservationForm(); // 예약 폼 드롭다운 갱신
+      populateFormSelects(); // 예약 폼 드롭다운 갱신
     }
 
     function deletePgm(name) {
@@ -2153,7 +2153,7 @@
         delete pgmColors[name];
         savePgmToStorage();
         renderPgmList();
-        initReservationForm();
+        populateFormSelects();
       }
     }
 
@@ -2412,6 +2412,11 @@
       const phone = phoneEl ? phoneEl.value.trim() : '';
       const genderLabel = genderEl ? genderEl.closest('label').textContent.trim() : '';
 
+      // 필수값 검증
+      if (!room) { alert('숙소를 선택해주세요.'); return; }
+      if (!checkin || !checkout) { alert('입실일과 퇴실일을 모두 입력해주세요.'); return; }
+      if (checkout < checkin) { alert('퇴실일이 입실일보다 앞설 수 없습니다.'); return; }
+
       const yo = document.getElementById('form-bedding-yo').value;
       const blanket = document.getElementById('form-bedding-blanket').value;
       const pillow = document.getElementById('form-bedding-pillow').value;
@@ -2466,6 +2471,8 @@
         }
       });
 
+      if (!checkin || !checkout) { alert('입실일과 퇴실일을 모두 입력해주세요.'); return; }
+      if (checkout < checkin) { alert('퇴실일이 입실일보다 앞설 수 없습니다.'); return; }
       if (guests.length === 0) { alert('게스트 정보를 입력해주세요.'); return; }
 
       btn.disabled = true;

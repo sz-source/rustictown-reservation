@@ -88,7 +88,7 @@ export default async function handler(req, res) {
       create_item(
         board_id: ${BOARD_ID},
         group_id: "${groupId}",
-        item_name: "${body.name.replace(/"/g, '\\"')}",
+        item_name: "${body.name.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}",
         column_values: ${columnValuesStr}
       ) {
         id

@@ -58,9 +58,12 @@ export default async function handler(req, res) {
       columnValues['timerange_mkzk428w'] = { from: body.checkin, to: body.checkout };
     }
 
-    // 전화번호 변경
+    // 전화번호 변경 (숫자만 추출, 유효한 경우만 설정)
     if (body.phone) {
-      columnValues['phone_mkzkr93j'] = { phone: body.phone, countryShortName: 'KR' };
+      const digits = body.phone.replace(/\D/g, '');
+      if (digits.length >= 8) {
+        columnValues['phone_mkzkr93j'] = { phone: digits, countryShortName: 'KR' };
+      }
     }
 
     // 기타 텍스트 필드
