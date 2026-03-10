@@ -230,6 +230,18 @@
     </div>
   </div>
 
+  <!-- ==================== 청소 뱃지 팝업 (캘린더 클릭) ==================== -->
+  <div id="clean-popup" class="hidden fixed z-[55]" style="pointer-events:none">
+    <div class="bg-white rounded-lg shadow-xl border p-3 min-w-[200px]" style="pointer-events:auto">
+      <div id="clean-popup-info" class="text-sm font-medium mb-2 text-gray-700"></div>
+      <div id="clean-popup-status" class="text-xs text-gray-500 mb-3"></div>
+      <div class="flex gap-2">
+        <button id="clean-popup-toggle" class="flex-1 px-3 py-1.5 text-xs font-medium rounded border hover:bg-gray-50" onclick="cleanPopupToggle()">상태 변경</button>
+        <button id="clean-popup-delete" class="flex-1 px-3 py-1.5 text-xs font-medium rounded border border-red-200 text-red-600 hover:bg-red-50" onclick="cleanPopupDelete()">삭제</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== Modal: 청소 일정 등록 ==================== -->
   <div id="cleaning-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4" onmousedown="_modalMouseDownTarget=event.target" onclick="tryCloseModal('cleaning-modal',event)">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-md" onclick="event.stopPropagation()">
@@ -301,32 +313,7 @@
         <table id="weekly-table" class="border-collapse w-full" style="min-width:1000px"></table>
       </div>
 
-      <!-- 청소 일정 리스트 (캘린더 하단) -->
-      <div id="cal-cleaning-section" class="hidden mt-6">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-lg font-semibold">🧹 청소 일정</h2>
-          <button id="btn-add-cleaning-cal" class="bg-emerald-500 text-white px-4 py-1.5 rounded text-sm hover:bg-emerald-600" onclick="openCleaningModal()">+ 청소 일정 등록</button>
-        </div>
-        <div class="bg-white rounded-lg border overflow-hidden">
-          <table class="w-full text-sm">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-4 py-2.5 text-left font-medium text-gray-600">숙소</th>
-                <th class="px-4 py-2.5 text-center font-medium text-gray-600">청소일</th>
-                <th class="px-4 py-2.5 text-center font-medium text-gray-600">담당</th>
-                <th class="px-4 py-2.5 text-center font-medium text-gray-600">상태</th>
-                <th class="px-4 py-2.5 text-center font-medium text-gray-600 w-16"></th>
-              </tr>
-            </thead>
-            <tbody id="cal-cleaning-tbody"></tbody>
-          </table>
-        </div>
-        <div class="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
-          <span><span class="inline-block w-3 h-3 rounded bg-emerald-500 mr-1"></span> 완료</span>
-          <span><span class="inline-block w-3 h-3 rounded bg-blue-400 mr-1"></span> 예정</span>
-          <span class="text-amber-500">&#9733; 넓은 숙소</span>
-        </div>
-      </div>
+      <!-- 청소 일정은 캘린더 뱃지 클릭 팝업으로 관리 -->
     </div>
   </div>
 
@@ -740,9 +727,6 @@
       const addCleanBtn = document.getElementById('btn-add-cleaning');
       if (addCleanBtn) addCleanBtn.classList.toggle('hidden', isAdmin);
 
-      // 캘린더 하단 청소 일정 리스트: 청소팀 뷰에서 표시
-      const calCleanSection = document.getElementById('cal-cleaning-section');
-      if (calCleanSection) calCleanSection.classList.toggle('hidden', !isClean);
 
       // Re-render calendars
       if (loggedIn) {
@@ -811,6 +795,16 @@
       ['포캠2', '🤖 AI특화 포캠2'],
       ['기획서', '📋 기획서 찢고 나온 기획자'],
     ];
+    // pgmColors localStorage 영속화
+    function savePgmToStorage() { try { localStorage.setItem('pgmColors', JSON.stringify(pgmColors)); } catch(e) {} }
+    function loadPgmFromStorage() {
+      try {
+        const saved = localStorage.getItem('pgmColors');
+        if (saved) { const parsed = JSON.parse(saved); Object.keys(pgmColors).forEach(k => delete pgmColors[k]); Object.assign(pgmColors, parsed); }
+      } catch(e) {}
+    }
+    loadPgmFromStorage();
+
     function _strip(s) { return s.replace(/[^가-힣a-zA-Z0-9]/g, '').toLowerCase(); }
     function _findPgm(pgm) {
       if (!pgm) return null;
@@ -980,6 +974,14 @@
 
     // Global cleaning schedule (used by calendar and cleaning table)
     const cleaningSchedule = [];
+    function saveCleaningToStorage() { try { localStorage.setItem('cleaningSchedule', JSON.stringify(cleaningSchedule)); } catch(e) {} }
+    function loadCleaningFromStorage() {
+      try {
+        const saved = localStorage.getItem('cleaningSchedule');
+        if (saved) { cleaningSchedule.length = 0; cleaningSchedule.push(...JSON.parse(saved)); return true; }
+      } catch(e) {}
+      return false;
+    }
     function buildCleaningSchedule() {
       cleaningSchedule.length = 0;
       // 3/2(월) 청소완료 — 다람쥐 프로그램 입실 전 전체 청소
@@ -1158,7 +1160,7 @@
               const barLeft = halfCell ? 'left:50%;' : 'left:2px;';
               const barWidth = halfCell ? `calc(${(spanLen - 1) * 100}% + ${(spanLen - 1)}px)` : 'calc(100% - 4px)';
               const cleanLabel = cleanSpan.done ? '완료' : '예정';
-              cellContent += `<div class="clean-bar" data-clean-room="${room.name}" data-clean-day="${cleanSpan.startDay}" onclick="event.stopPropagation();toggleCleanStatus('${room.name}',${cleanSpan.startDay})" style="position:absolute;bottom:2px;${barLeft}width:${barWidth};background:${cleanSpan.done?'#d1fae5':'#fef3c7'};color:${cleanSpan.done?'#065f46':'#92400e'};z-index:3;padding:2px 4px;font-size:12px;border-radius:4px;text-align:center;white-space:nowrap;overflow:hidden;pointer-events:auto;cursor:pointer">${cleanLabel}</div>`;
+              cellContent += `<div class="clean-bar" data-clean-room="${room.name}" data-clean-day="${cleanSpan.startDay}" onclick="showCleanPopup('${room.name}',${cleanSpan.startDay},event)" style="position:absolute;bottom:2px;${barLeft}width:${barWidth};background:${cleanSpan.done?'#d1fae5':'#fef3c7'};color:${cleanSpan.done?'#065f46':'#92400e'};z-index:3;padding:2px 4px;font-size:12px;border-radius:4px;text-align:center;white-space:nowrap;overflow:hidden;pointer-events:auto;cursor:pointer">${cleanLabel}</div>`;
             }
 
             html += `<td class="cell" data-room="${room.name}" data-day="${day}" style="position:relative;overflow:visible;padding:0">${cellContent}</td>`;
@@ -1249,7 +1251,7 @@
                 const halfCell = spanLen > 1;
                 const cleanBarLeft = halfCell ? 'left:50%;' : 'left:2px;';
                 const barWidth = halfCell ? `calc(${(spanLen - 1) * 100}% + ${(spanLen - 1)}px)` : 'calc(100% - 4px)';
-                cellContent += `<div class="clean-bar" data-clean-room="${room.name}" data-clean-day="${cleanSpan.startDay}" onclick="event.stopPropagation();toggleCleanStatus('${room.name}',${cleanSpan.startDay})" style="position:absolute;bottom:2px;${cleanBarLeft}width:${barWidth};background:${cleanSpan.done?'#d1fae5':'#fef3c7'};color:${cleanSpan.done?'#065f46':'#92400e'};z-index:3;padding:2px 4px;font-size:12px;border-radius:4px;pointer-events:auto;cursor:pointer">${cleanSpan.done?'✓ 청소완료':'🧹 청소예정'}</div>`;
+                cellContent += `<div class="clean-bar" data-clean-room="${room.name}" data-clean-day="${cleanSpan.startDay}" onclick="showCleanPopup('${room.name}',${cleanSpan.startDay},event)" style="position:absolute;bottom:2px;${cleanBarLeft}width:${barWidth};background:${cleanSpan.done?'#d1fae5':'#fef3c7'};color:${cleanSpan.done?'#065f46':'#92400e'};z-index:3;padding:2px 4px;font-size:12px;border-radius:4px;pointer-events:auto;cursor:pointer">${cleanSpan.done?'✓ 청소완료':'🧹 청소예정'}</div>`;
               }
             }
 
@@ -1607,14 +1609,61 @@
       });
       if (tbody) tbody.innerHTML = html;
 
-      // Also populate calendar page cleaning tbody
-      const calTbody = document.getElementById('cal-cleaning-tbody');
-      if (calTbody) calTbody.innerHTML = html;
+      // 캘린더 뱃지 팝업으로 대체됨 (별도 테이블 없음)
 
       // Also populate cleaning modal room select
       const sel = document.getElementById('clean-room-select');
       if (sel) sel.innerHTML = '<option>선택</option>' + rooms.filter(r => !isRoomDisabled(r.name)).map(r => `<option>${r.name}${isPremium(r.name) ? ' ★' : ''}</option>`).join('');
     }
+
+    // ========== 청소 뱃지 팝업 ==========
+    let _cleanPopupRoom = null, _cleanPopupDay = null;
+    function showCleanPopup(room, day, evt) {
+      evt.stopPropagation();
+      const item = cleaningSchedule.find(c => c.room === room && c.day === day);
+      if (!item) return;
+      _cleanPopupRoom = room;
+      _cleanPopupDay = day;
+      const popup = document.getElementById('clean-popup');
+      document.getElementById('clean-popup-info').textContent = `${room} · ${calMonth}/${day}`;
+      document.getElementById('clean-popup-status').textContent = item.done ? '✅ 청소완료' : '🧹 청소예정';
+      document.getElementById('clean-popup-toggle').textContent = item.done ? '예정으로 변경' : '완료로 변경';
+      popup.classList.remove('hidden');
+      // 위치 계산
+      const rect = evt.target.closest('.clean-bar').getBoundingClientRect();
+      let left = rect.left;
+      let top = rect.bottom + 4;
+      // 화면 밖 방지
+      if (left + 220 > window.innerWidth) left = window.innerWidth - 230;
+      if (left < 10) left = 10;
+      if (top + 120 > window.innerHeight) top = rect.top - 120;
+      popup.style.left = left + 'px';
+      popup.style.top = top + 'px';
+    }
+    function hideCleanPopup() {
+      document.getElementById('clean-popup').classList.add('hidden');
+      _cleanPopupRoom = null;
+      _cleanPopupDay = null;
+    }
+    function cleanPopupToggle() {
+      if (_cleanPopupRoom && _cleanPopupDay) toggleCleanStatus(_cleanPopupRoom, _cleanPopupDay);
+      hideCleanPopup();
+    }
+    function cleanPopupDelete() {
+      if (_cleanPopupRoom && _cleanPopupDay) {
+        if (confirm(`${_cleanPopupRoom} ${calMonth}/${_cleanPopupDay} 청소 일정을 삭제하시겠습니까?`)) {
+          deleteCleaning(_cleanPopupRoom, _cleanPopupDay);
+        }
+      }
+      hideCleanPopup();
+    }
+    // 팝업 외부 클릭 시 닫기
+    document.addEventListener('click', (e) => {
+      const popup = document.getElementById('clean-popup');
+      if (!popup.classList.contains('hidden') && !popup.contains(e.target) && !e.target.closest('.clean-bar')) {
+        hideCleanPopup();
+      }
+    });
 
     // ========== TOGGLE CLEANING STATUS ==========
     function toggleCleanStatus(room, day) {
@@ -1628,6 +1677,7 @@
       while (roomCleans.some(c => c.day === endDay + 1 && c.done === targetDone)) endDay++;
       roomCleans.filter(c => c.day >= startDay && c.day <= endDay && c.done === targetDone)
         .forEach(c => c.done = !c.done);
+      saveCleaningToStorage();
       renderOpsCleaning();
       renderMonthly();
       renderWeekly();
@@ -1684,6 +1734,7 @@
 
       if (added === 0) { alert('해당 기간에 이미 청소 일정이 등록되어 있습니다.'); return; }
 
+      saveCleaningToStorage();
       draggedCleanRooms = [];
       closeModal('cleaning-modal');
       document.getElementById('clean-person').value = '';
@@ -1697,6 +1748,7 @@
       const idx = cleaningSchedule.findIndex(c => c.room === room && c.day === day);
       if (idx === -1) return;
       cleaningSchedule.splice(idx, 1);
+      saveCleaningToStorage();
       renderOpsCleaning();
       renderMonthly();
       renderWeekly();
@@ -1809,6 +1861,7 @@
 
       pgmColors[name] = { bg: selectedPgmColor, label: short, schedule, nights };
       editingPgmName = null;
+      savePgmToStorage();
       closeModal('pgm-modal');
       renderPgmList();
       initReservationForm(); // 예약 폼 드롭다운 갱신
@@ -1817,6 +1870,7 @@
     function deletePgm(name) {
       if (confirm(`"${name}" 프로그램을 삭제하시겠습니까?`)) {
         delete pgmColors[name];
+        savePgmToStorage();
         renderPgmList();
         initReservationForm();
       }
@@ -2206,7 +2260,10 @@
     if (legendEl) {
       legendEl.innerHTML = '<span><span class="inline-block w-3 h-3 rounded mr-1" style="background:#d1d5db"></span>퇴실완료</span> <span><span class="inline-block w-3 h-3 rounded mr-1" style="background:#fef3c7"></span>청소예정</span> <span><span class="inline-block w-3 h-3 rounded mr-1" style="background:#d1fae5"></span>청소완료</span> <span>🔴 추가침구</span>';
     }
-    buildCleaningSchedule();
+    // localStorage에 청소 데이터가 있으면 로드, 없으면 기본 데이터 생성
+    if (!loadCleaningFromStorage()) {
+      buildCleaningSchedule();
+    }
 
     // 폴백 데이터로 초기 렌더링 후, API 데이터 비동기 로드
     reservations = fallbackReservations;
