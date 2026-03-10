@@ -2095,7 +2095,7 @@
         return `<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
           <div class="w-4 h-4 rounded-full flex-shrink-0" style="background:${val.bg}"></div>
           <div class="flex-1 min-w-0"><div class="font-medium text-sm truncate">${fullName}</div>${scheduleInfo}</div>
-          <button class="text-blue-500 hover:text-blue-700 text-sm flex-shrink-0" onclick="editPgm('${fullName.replace(/'/g,"\\'")}')">수정</button>
+          <button class="text-gray-400 hover:text-blue-500 text-sm flex-shrink-0" onclick="editPgm('${fullName.replace(/'/g,"\\'")}')">✏️</button>
           <button class="text-red-400 hover:text-red-600 text-sm flex-shrink-0" onclick="deletePgm('${fullName.replace(/'/g,"\\'")}')">삭제</button>
         </div>`;
       }).join('');
