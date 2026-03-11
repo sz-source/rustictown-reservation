@@ -1093,12 +1093,12 @@
       const groups = {};
       roomRes.forEach(r => {
         const key = `${r.ci}-${r.co}`;
+        const guestInfo = { guest: r.guest, count: r.count, phone: r.phone, gender: r.gender, status: r.status, id: r.id, org: r.org, pgm: r.pgm, category: r.category };
         if (!groups[key]) {
-          groups[key] = { ...r, guests: [{ guest: r.guest, count: r.count, phone: r.phone, gender: r.gender, status: r.status }] };
+          groups[key] = { ...r, guests: [guestInfo] };
         } else {
           groups[key].count += r.count;
-          groups[key].guests.push({ guest: r.guest, count: r.count, phone: r.phone, gender: r.gender, status: r.status });
-          // 대표자 이름 업데이트: "이름 외 N명"
+          groups[key].guests.push(guestInfo);
           if (groups[key].guests.length > 1) {
             groups[key].guest = groups[key].guests[0].guest;
           }
@@ -1336,9 +1336,12 @@
       return `${d.year}-${String(d.month).padStart(2,'0')}-${String(d.day).padStart(2,'0')}`;
     }
 
+    let _detailTabIndex = 0;
+
     function showDetail(el) {
       const res = JSON.parse(el.dataset.res);
       _detailRes = res;
+      _detailTabIndex = 0;
       const ciDisp = fmtOffset(res.ci);
       const coDisp = fmtOffset(res.co);
       const nights = res.co - res.ci;
@@ -1352,85 +1355,123 @@
           ${beddingHtml}
         `;
       } else {
-        // 상태 드롭다운
-        const statusKeys = Object.keys(statusColors);
-        const statusOpts = statusKeys.map(s => `<option value="${s}" ${s === res.status ? 'selected' : ''}>${s}</option>`).join('');
-
-        // 숙소 드롭다운
-        const roomOpts = rooms.filter(r => !isRoomDisabled(r.name)).map(r => `<option value="${r.name}" ${r.name === res.room ? 'selected' : ''}>${r.name}${isPremium(r.name) ? ' ★' : ''}</option>`).join('');
-
-        // 프로그램 드롭다운 (키워드 기반 퍼지 매칭)
-        const pgmKeys = Object.keys(pgmColors);
-        const matchedPgmKey = _findPgmKey(res.pgm);
-        const pgmOpts = '<option value="">미지정</option>' + pgmKeys.map(k => {
-          const label = `${k.split(' ')[0]} ${pgmColors[k].label}`;
-          const selected = matchedPgmKey === k ? 'selected' : '';
-          return `<option value="${k}" ${selected}>${label}</option>`;
-        }).join('');
-
-        // 날짜 문자열
-        const ciDate = offsetToDateStr(res.ci);
-        const coDate = offsetToDateStr(res.co);
-
-        const canEdit = !!res.id;
-        const editClass = canEdit ? '' : 'pointer-events-none opacity-60';
-
-        document.getElementById('detail-content').innerHTML = `
-          <div class="space-y-3 ${editClass}">
-            <div class="flex items-center gap-2">
-              <span class="text-gray-500 text-sm w-20 shrink-0">이름</span>
-              <input id="detail-edit-guest" type="text" class="flex-1 border rounded px-2 py-1.5 text-sm" value="${(res.guest || '').replace(/"/g, '&quot;')}">
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-gray-500 text-sm w-20 shrink-0">상태</span>
-              <select id="detail-edit-status" class="flex-1 border rounded px-2 py-1.5 text-sm bg-white">${statusOpts}</select>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-gray-500 text-sm w-20 shrink-0">숙소</span>
-              <select id="detail-edit-room" class="flex-1 border rounded px-2 py-1.5 text-sm bg-white">${roomOpts}</select>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-gray-500 text-sm w-20 shrink-0">입실일</span>
-              <input id="detail-edit-ci" type="date" class="flex-1 border rounded px-2 py-1.5 text-sm" value="${ciDate}">
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-gray-500 text-sm w-20 shrink-0">퇴실일</span>
-              <input id="detail-edit-co" type="date" class="flex-1 border rounded px-2 py-1.5 text-sm" value="${coDate}">
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-gray-500 text-sm w-20 shrink-0">프로그램</span>
-              <select id="detail-edit-pgm" class="flex-1 border rounded px-2 py-1.5 text-sm bg-white">${pgmOpts}</select>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-gray-500 text-sm w-20 shrink-0">전화번호</span>
-              <input id="detail-edit-phone" type="text" class="flex-1 border rounded px-2 py-1.5 text-sm" value="${res.phone || ''}" placeholder="01012345678">
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-gray-500 text-sm w-20 shrink-0">성별</span>
-              <select id="detail-edit-gender" class="flex-1 border rounded px-2 py-1.5 text-sm bg-white">
-                <option value="">미지정</option>
-                <option value="남자" ${(res.gender || '').includes('남') ? 'selected' : ''}>남자</option>
-                <option value="여자" ${(res.gender || '').includes('여') ? 'selected' : ''}>여자</option>
-              </select>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-gray-500 text-sm w-20 shrink-0">소속</span>
-              <input id="detail-edit-org" type="text" class="flex-1 border rounded px-2 py-1.5 text-sm" value="${(res.org || '').replace(/"/g, '&quot;')}" placeholder="소속/기업명">
-            </div>
-          </div>
-          ${beddingHtml}
-          ${canEdit ? `
-          <div class="flex gap-2 pt-3 mt-3 border-t">
-            <button id="detail-save-btn" class="flex-1 py-2 text-sm text-white bg-blue-500 hover:bg-blue-600 rounded font-medium" onclick="saveDetailEdit()">💾 저장</button>
-            <button class="px-4 py-2 text-sm text-red-500 hover:bg-red-50 rounded border border-red-200 font-medium" onclick="deleteReservationConfirm('${res.id}', '${(res.guest || '').replace(/'/g, "\\'")}')">🗑️</button>
-          </div>` : ''}
-        `;
+        _renderDetailTab(res, 0);
       }
       openModal('detail-modal');
     }
 
+    function _renderDetailTab(res, tabIdx) {
+      _detailTabIndex = tabIdx;
+      const guests = res.guests || [];
+      const isMulti = guests.length > 1;
+
+      // 현재 탭의 게스트 정보 (단일이면 res 그대로)
+      const g = isMulti ? guests[tabIdx] : res;
+      const guestName = g.guest || '';
+      const guestStatus = g.status || res.status || '';
+      const guestPhone = g.phone || res.phone || '';
+      const guestGender = g.gender || res.gender || '';
+      const guestOrg = g.org || res.org || '';
+      const guestPgm = g.pgm || res.pgm || '';
+      const guestId = g.id || res.id || '';
+
+      // 탭 HTML
+      let tabHtml = '';
+      if (isMulti) {
+        tabHtml = `<div class="flex gap-1 mb-3 pb-2 border-b overflow-x-auto">`;
+        guests.forEach((gt, i) => {
+          const active = i === tabIdx;
+          tabHtml += `<button class="px-3 py-1.5 text-sm rounded-full whitespace-nowrap transition-colors ${active ? 'bg-blue-500 text-white font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}" onclick="_renderDetailTab(_detailRes, ${i})">${gt.guest || '이름없음'}</button>`;
+        });
+        tabHtml += `</div>`;
+      }
+
+      // 상태 드롭다운
+      const statusKeys = Object.keys(statusColors);
+      const statusOpts = statusKeys.map(s => `<option value="${s}" ${s === guestStatus ? 'selected' : ''}>${s}</option>`).join('');
+
+      // 숙소 드롭다운
+      const roomOpts = rooms.filter(r => !isRoomDisabled(r.name)).map(r => `<option value="${r.name}" ${r.name === res.room ? 'selected' : ''}>${r.name}${isPremium(r.name) ? ' ★' : ''}</option>`).join('');
+
+      // 프로그램 드롭다운
+      const pgmKeys = Object.keys(pgmColors);
+      const matchedPgmKey = _findPgmKey(guestPgm);
+      const pgmOpts = '<option value="">미지정</option>' + pgmKeys.map(k => {
+        const label = `${k.split(' ')[0]} ${pgmColors[k].label}`;
+        const selected = matchedPgmKey === k ? 'selected' : '';
+        return `<option value="${k}" ${selected}>${label}</option>`;
+      }).join('');
+
+      // 날짜
+      const ciDate = offsetToDateStr(res.ci);
+      const coDate = offsetToDateStr(res.co);
+
+      const canEdit = !!guestId;
+      const editClass = canEdit ? '' : 'pointer-events-none opacity-60';
+
+      const beddingHtml = hasExtraBedding(res.room, res.count) ? `<div class="flex items-start"><span class="text-gray-500 w-20">추가침구</span><span class="text-red-500 font-medium">🔴 ${(() => { const b = extraBedding[res.room]; const parts = []; if(b.yo) parts.push('요 '+b.yo); if(b.blanket) parts.push('이불 '+b.blanket); if(b.pillow) parts.push('베개 '+b.pillow); return parts.join(', '); })()}</span></div>` : '';
+
+      document.getElementById('detail-content').innerHTML = `
+        ${tabHtml}
+        <div class="space-y-3 ${editClass}">
+          <div class="flex items-center gap-2">
+            <span class="text-gray-500 text-sm w-20 shrink-0">이름</span>
+            <input id="detail-edit-guest" type="text" class="flex-1 border rounded px-2 py-1.5 text-sm" value="${guestName.replace(/"/g, '&quot;')}">
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-gray-500 text-sm w-20 shrink-0">상태</span>
+            <select id="detail-edit-status" class="flex-1 border rounded px-2 py-1.5 text-sm bg-white">${statusOpts}</select>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-gray-500 text-sm w-20 shrink-0">숙소</span>
+            <select id="detail-edit-room" class="flex-1 border rounded px-2 py-1.5 text-sm bg-white">${roomOpts}</select>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-gray-500 text-sm w-20 shrink-0">입실일</span>
+            <input id="detail-edit-ci" type="date" class="flex-1 border rounded px-2 py-1.5 text-sm" value="${ciDate}">
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-gray-500 text-sm w-20 shrink-0">퇴실일</span>
+            <input id="detail-edit-co" type="date" class="flex-1 border rounded px-2 py-1.5 text-sm" value="${coDate}">
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-gray-500 text-sm w-20 shrink-0">프로그램</span>
+            <select id="detail-edit-pgm" class="flex-1 border rounded px-2 py-1.5 text-sm bg-white">${pgmOpts}</select>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-gray-500 text-sm w-20 shrink-0">전화번호</span>
+            <input id="detail-edit-phone" type="text" class="flex-1 border rounded px-2 py-1.5 text-sm" value="${guestPhone}" placeholder="01012345678">
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-gray-500 text-sm w-20 shrink-0">성별</span>
+            <select id="detail-edit-gender" class="flex-1 border rounded px-2 py-1.5 text-sm bg-white">
+              <option value="">미지정</option>
+              <option value="남자" ${(guestGender || '').includes('남') ? 'selected' : ''}>남자</option>
+              <option value="여자" ${(guestGender || '').includes('여') ? 'selected' : ''}>여자</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-gray-500 text-sm w-20 shrink-0">소속</span>
+            <input id="detail-edit-org" type="text" class="flex-1 border rounded px-2 py-1.5 text-sm" value="${(guestOrg || '').replace(/"/g, '&quot;')}" placeholder="소속/기업명">
+          </div>
+        </div>
+        ${beddingHtml}
+        ${canEdit ? `
+        <div class="flex gap-2 pt-3 mt-3 border-t">
+          <button id="detail-save-btn" class="flex-1 py-2 text-sm text-white bg-blue-500 hover:bg-blue-600 rounded font-medium" onclick="saveDetailEdit()">💾 저장</button>
+          <button class="px-4 py-2 text-sm text-red-500 hover:bg-red-50 rounded border border-red-200 font-medium" onclick="deleteReservationConfirm('${guestId}', '${guestName.replace(/'/g, "\\'")}')">🗑️</button>
+        </div>` : ''}
+      `;
+    }
+
     async function saveDetailEdit() {
-      if (!_detailRes || !_detailRes.id) return;
+      // 현재 탭의 게스트 정보 가져오기
+      const guests = _detailRes.guests || [];
+      const isMulti = guests.length > 1;
+      const curGuest = isMulti ? guests[_detailTabIndex] : _detailRes;
+      const itemId = curGuest.id || _detailRes.id;
+      if (!itemId) return;
+
       const updates = {};
 
       const newStatus = document.getElementById('detail-edit-status').value;
@@ -1442,7 +1483,8 @@
       const newGender = document.getElementById('detail-edit-gender').value;
       const newOrg = document.getElementById('detail-edit-org').value.trim();
 
-      if (newStatus !== _detailRes.status) updates.status = newStatus;
+      const origStatus = curGuest.status || _detailRes.status || '';
+      if (newStatus !== origStatus) updates.status = newStatus;
       if (newRoom !== _detailRes.room) updates.room = newRoom;
 
       // 날짜 비교
@@ -1455,19 +1497,23 @@
         updates.checkout = newCo;
       }
 
-      const origPgmKey = _findPgmKey(_detailRes.pgm);
+      const origPgm = curGuest.pgm || _detailRes.pgm || '';
+      const origPgmKey = _findPgmKey(origPgm);
       if (newPgm !== origPgmKey) updates.program = newPgm;
-      if (newPhone !== (_detailRes.phone || '')) updates.phone = newPhone;
-      const origGender = (_detailRes.gender || '').includes('남') ? '남자' : (_detailRes.gender || '').includes('여') ? '여자' : '';
+      const origPhone = curGuest.phone || _detailRes.phone || '';
+      if (newPhone !== origPhone) updates.phone = newPhone;
+      const origGenderRaw = curGuest.gender || _detailRes.gender || '';
+      const origGender = origGenderRaw.includes('남') ? '남자' : origGenderRaw.includes('여') ? '여자' : '';
       if (newGender !== origGender) updates.gender = newGender;
-      if (newOrg !== (_detailRes.org || '')) updates.org = newOrg;
+      const origOrg = curGuest.org || _detailRes.org || '';
+      if (newOrg !== origOrg) updates.org = newOrg;
 
       if (Object.keys(updates).length === 0) { alert('변경된 항목이 없습니다.'); return; }
 
       const btn = document.getElementById('detail-save-btn');
       btn.disabled = true;
       btn.innerHTML = '<span class="loading-spinner"></span> 저장 중...';
-      const ok = await updateReservation(_detailRes.id, updates);
+      const ok = await updateReservation(itemId, updates);
       if (ok) closeModal('detail-modal');
       else { btn.disabled = false; btn.textContent = '💾 저장'; }
     }
