@@ -1006,14 +1006,9 @@
       { guest: '임태현', room: '하이파이브 201호', ci: 30, co: 33, pgm: '🌲 내일말고지금', count: 1, status: '예약승인안내' },
     ];
 
-    // Bedding info: rooms that need extra bedding (추가침구)
-    const extraBedding = {
-      '산내음': { yo: 1, blanket: 1, pillow: 1 },  // 2인 이상 시 추가
-      '심청1': { yo: 0, blanket: 0, pillow: 1 },   // 2인 기본 but 추가 베개
-      '심청2': { yo: 1, blanket: 1, pillow: 2 },   // 3인 숙박 시 추가
-    };
-    function hasExtraBedding(room, count) {
-      return extraBedding[room] && count >= 2;
+    // 추가침구: 먼데이 데이터 기반 (res.extraBedding 문자열)
+    function hasExtraBedding(res) {
+      return res && res.extraBedding && res.extraBedding.trim() !== '';
     }
 
     // Global cleaning schedule (used by calendar and cleaning table)
@@ -1182,8 +1177,8 @@
               const isCleanMode = currentRole === 'cleaning';
               const guestCount = res.guests ? res.guests.length : 1;
               const nameLabel = isCleanMode ? `${res.count}명` : (guestCount > 1 ? `${res.guest} 외 ${guestCount - 1}명 (${res.count}명)` : (res.count > 1 ? `${res.guest} (${res.count}명)` : res.guest));
-              const hasBedding = hasExtraBedding(res.room, res.count);
-              const beddingText = hasBedding ? (() => { const b = extraBedding[res.room]; const p = []; if(b.yo) p.push('요'+b.yo); if(b.blanket) p.push('이불'+b.blanket); if(b.pillow) p.push('베개'+b.pillow); return p.join(' '); })() : '';
+              const hasBedding = hasExtraBedding(res);
+              const beddingText = hasBedding ? res.extraBedding.trim() : '';
               const label = isCleanMode ? (hasBedding && span >= 3 ? `${res.count}명 · ${beddingText}` : `${res.count}명`) : (span >= 3 ? `${nameLabel} · ${pgmLabel(res.pgm)}` : nameLabel);
               const beddingIcon = hasBedding ? '<span style="font-size:11px;vertical-align:middle;flex-shrink:0" title="추가침구">🔴</span>' : '';
               const beddingBorder = hasBedding ? 'border:2px dashed rgba(255,255,255,0.6);' : '';
@@ -1270,8 +1265,8 @@
                 const color = done ? '#d1d5db' : pgmColor(res.pgm);
                 const textColor = done ? 'color:#9ca3af' : 'color:#fff';
                 const isCleanMode = currentRole === 'cleaning';
-                const hasBedding = hasExtraBedding(res.room, res.count);
-                const beddingText = hasBedding ? (() => { const b = extraBedding[res.room]; const p = []; if(b.yo) p.push('요'+b.yo); if(b.blanket) p.push('이불'+b.blanket); if(b.pillow) p.push('베개'+b.pillow); return p.join(' '); })() : '';
+                const hasBedding = hasExtraBedding(res);
+                const beddingText = hasBedding ? res.extraBedding.trim() : '';
                 const guestCount = res.guests ? res.guests.length : 1;
                 const nameLabel = guestCount > 1 ? `${res.guest} 외 ${guestCount - 1}명 (${res.count}명)` : (res.count > 1 ? `${res.guest} (${res.count}명)` : res.guest);
                 const label = isCleanMode ? (hasBedding ? `${res.count}명 · ${beddingText}` : `${res.count}명`) : `${nameLabel} · ${pgmLabel(res.pgm)}`;
@@ -1345,7 +1340,7 @@
       const ciDisp = fmtOffset(res.ci);
       const coDisp = fmtOffset(res.co);
       const nights = res.co - res.ci;
-      const beddingHtml = hasExtraBedding(res.room, res.count) ? `<div class="flex items-start"><span class="text-gray-500 w-20">추가침구</span><span class="text-red-500 font-medium">🔴 ${(() => { const b = extraBedding[res.room]; const parts = []; if(b.yo) parts.push('요 '+b.yo); if(b.blanket) parts.push('이불 '+b.blanket); if(b.pillow) parts.push('베개 '+b.pillow); return parts.join(', '); })()}</span></div>` : '';
+      const beddingHtml = hasExtraBedding(res) ? `<div class="flex items-start"><span class="text-gray-500 w-20">추가침구</span><span class="text-red-500 font-medium">🔴 ${res.extraBedding.trim()}</span></div>` : '';
 
       if (currentRole === 'cleaning') {
         document.getElementById('detail-content').innerHTML = `
@@ -1409,7 +1404,7 @@
       const canEdit = !!guestId;
       const editClass = canEdit ? '' : 'pointer-events-none opacity-60';
 
-      const beddingHtml = hasExtraBedding(res.room, res.count) ? `<div class="flex items-start"><span class="text-gray-500 w-20">추가침구</span><span class="text-red-500 font-medium">🔴 ${(() => { const b = extraBedding[res.room]; const parts = []; if(b.yo) parts.push('요 '+b.yo); if(b.blanket) parts.push('이불 '+b.blanket); if(b.pillow) parts.push('베개 '+b.pillow); return parts.join(', '); })()}</span></div>` : '';
+      const curBedding = res.extraBedding || '';
 
       document.getElementById('detail-content').innerHTML = `
         ${tabHtml}
@@ -1454,8 +1449,11 @@
             <span class="text-gray-500 text-sm w-20 shrink-0">소속</span>
             <input id="detail-edit-org" type="text" class="flex-1 border rounded px-2 py-1.5 text-sm" value="${(guestOrg || '').replace(/"/g, '&quot;')}" placeholder="소속/기업명">
           </div>
+          <div class="flex items-center gap-2">
+            <span class="text-gray-500 text-sm w-20 shrink-0">추가침구</span>
+            <input id="detail-edit-bedding" type="text" class="flex-1 border rounded px-2 py-1.5 text-sm ${curBedding ? 'text-red-600 font-medium' : ''}" value="${curBedding.replace(/"/g, '&quot;')}" placeholder="예: 요1 베개1 이불1">
+          </div>
         </div>
-        ${beddingHtml}
         ${canEdit ? `
         <div class="flex gap-2 pt-3 mt-3 border-t">
           <button id="detail-save-btn" class="flex-1 py-2 text-sm text-white bg-blue-500 hover:bg-blue-600 rounded font-medium" onclick="saveDetailEdit()">💾 저장</button>
@@ -1507,6 +1505,9 @@
       if (newGender !== origGender) updates.gender = newGender;
       const origOrg = curGuest.org || _detailRes.org || '';
       if (newOrg !== origOrg) updates.org = newOrg;
+      const newBedding = document.getElementById('detail-edit-bedding').value.trim();
+      const origBedding = (_detailRes.extraBedding || '').trim();
+      if (newBedding !== origBedding) updates.extraBedding = newBedding;
 
       if (Object.keys(updates).length === 0) { alert('변경된 항목이 없습니다.'); return; }
 
