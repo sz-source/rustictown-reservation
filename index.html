@@ -788,6 +788,10 @@
       { name: '하이파이브 201호', type: 'Q / 1인' }, { name: '하이파이브 202호', type: 'Q / 1인' },
       { name: '하이파이브 203호', type: 'Q / 1인' }, { name: '하이파이브 204호', type: 'Q / 1인' },
     ];
+    // rooms.type localStorage 영속화
+    function saveRoomTypesToStorage() { try { const map = {}; rooms.forEach(r => map[r.name] = r.type); localStorage.setItem('roomTypes', JSON.stringify(map)); } catch(e) {} }
+    function loadRoomTypesFromStorage() { try { const saved = localStorage.getItem('roomTypes'); if (saved) { const map = JSON.parse(saved); rooms.forEach(r => { if (map[r.name]) r.type = map[r.name]; }); } } catch(e) {} }
+    loadRoomTypesFromStorage();
     function isPremium(name) { return premiumRooms.includes(name); }
     function premiumBadge(name) { return isPremium(name) ? '<span class="text-amber-500 ml-0.5" title="넓은 숙소">&#9733;</span>' : ''; }
 
@@ -2365,7 +2369,10 @@
     }
 
     // ========== ROOM MANAGEMENT ==========
-    const disabledRooms = ['연꽃'];  // 고장/사용불가 숙소
+    const disabledRooms = ['연꽃'];  // 고장/사용불가 숙소 (기본값)
+    // disabledRooms localStorage 영속화
+    function saveDisabledRoomsToStorage() { try { localStorage.setItem('disabledRooms', JSON.stringify(disabledRooms)); } catch(e) {} }
+    (function loadDisabledRoomsFromStorage() { try { const saved = localStorage.getItem('disabledRooms'); if (saved) { disabledRooms.length = 0; disabledRooms.push(...JSON.parse(saved)); } } catch(e) {} })();
     function isRoomDisabled(name) { return disabledRooms.includes(name); }
 
     let editingRoom = null; // 현재 편집 중인 숙소명
@@ -2418,6 +2425,7 @@
       const bed = document.getElementById('edit-bed-' + name).value;
       const cap = document.getElementById('edit-cap-' + name).value;
       room.type = bed + ' / ' + cap;
+      saveRoomTypesToStorage();
       editingRoom = null;
       renderRoomList();
       // 캘린더에도 반영
@@ -2432,6 +2440,7 @@
         const idx = disabledRooms.indexOf(name);
         if (idx > -1) disabledRooms.splice(idx, 1);
       }
+      saveDisabledRoomsToStorage();
       renderRoomList();
       populateFormSelects(); // Update form dropdowns
     }
