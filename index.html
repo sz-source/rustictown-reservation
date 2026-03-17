@@ -2455,6 +2455,7 @@
       const tabs = document.querySelectorAll('.nav-tab');
       const idx = tabMap[name];
       if (idx !== undefined && tabs[idx]) tabs[idx].classList.add('active');
+      try { localStorage.setItem('currentPage', name); } catch(e) {}
     }
 
     // ── 캘린더 월/주 이동 ──
@@ -2810,9 +2811,10 @@
     renderOpsCleaning();
     populateFormSelects();
 
-    // 로그인 상태면 서버 데이터 로드
+    // 로그인 상태면 서버 데이터 로드 + 마지막 탭 복원
     if (savedRole) {
       fetchReservations();
+      try { const lastPage = localStorage.getItem('currentPage'); if (lastPage && document.getElementById('page-' + lastPage)) showPage(lastPage); } catch(e) {}
     }
     renderPgmList();
     renderRoomList();
