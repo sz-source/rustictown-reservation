@@ -765,12 +765,18 @@
         renderOpsCleaning();
       }
 
-      // Show calendar page + nav tab active state reset
+      // 저장된 탭 복원 (없으면 캘린더)
       if (loggedIn) {
-        document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
-        document.getElementById('page-calendar').classList.remove('hidden');
-        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.nav-tab')[0].classList.add('active'); // 캘린더 탭
+        try {
+          const lastPage = localStorage.getItem('currentPage');
+          // 청소팀은 캘린더/청소가이드만 접근 가능
+          const cleaningAllowed = ['calendar', 'cleanguide'];
+          if (lastPage && document.getElementById('page-' + lastPage) && (!isClean || cleaningAllowed.includes(lastPage))) {
+            showPage(lastPage);
+          } else {
+            showPage('calendar');
+          }
+        } catch(e) { showPage('calendar'); }
       }
     }
 
@@ -2393,8 +2399,8 @@
           const [bedType, capacity] = r.type.split(' / ');
           return `<div class="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg flex-wrap">
             <span class="font-medium whitespace-nowrap">${r.name} ${star}</span>
-            <input id="edit-bed-${r.name}" type="text" value="${bedType}" placeholder="예: 슈퍼싱글 2개" class="border rounded px-2 py-1 text-sm bg-white w-40">
-            <input id="edit-cap-${r.name}" type="text" value="${capacity}" placeholder="예: 2인" class="border rounded px-2 py-1 text-sm bg-white w-20">
+            <input id="edit-room-bed" type="text" value="${bedType}" placeholder="예: 슈퍼싱글 2개" class="border rounded px-2 py-1 text-sm bg-white w-40">
+            <input id="edit-room-cap" type="text" value="${capacity}" placeholder="예: 2인" class="border rounded px-2 py-1 text-sm bg-white w-20">
             <div class="flex gap-1 ml-auto">
               <button class="px-2.5 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600" onclick="saveRoomEdit('${r.name}')">저장</button>
               <button class="px-2.5 py-1 bg-gray-200 text-gray-600 rounded text-sm hover:bg-gray-300" onclick="cancelRoomEdit()">취소</button>
@@ -2422,8 +2428,8 @@
     function saveRoomEdit(name) {
       const room = rooms.find(r => r.name === name);
       if (!room) return;
-      const bed = document.getElementById('edit-bed-' + name).value;
-      const cap = document.getElementById('edit-cap-' + name).value;
+      const bed = document.getElementById('edit-room-bed').value;
+      const cap = document.getElementById('edit-room-cap').value;
       room.type = bed + ' / ' + cap;
       saveRoomTypesToStorage();
       editingRoom = null;
@@ -2811,10 +2817,9 @@
     renderOpsCleaning();
     populateFormSelects();
 
-    // 로그인 상태면 서버 데이터 로드 + 마지막 탭 복원
+    // 로그인 상태면 서버 데이터 로드 (탭 복원은 applyRole에서 처리)
     if (savedRole) {
       fetchReservations();
-      try { const lastPage = localStorage.getItem('currentPage'); if (lastPage && document.getElementById('page-' + lastPage)) showPage(lastPage); } catch(e) {}
     }
     renderPgmList();
     renderRoomList();
