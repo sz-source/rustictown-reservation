@@ -55,47 +55,63 @@
       }
       .nav-tabs-container { width: 100%; order: 10; }
 
-      /* 상단 네비 컴팩트 */
-      nav .mx-auto { padding: 6px 10px; }
-      nav .text-base { font-size: 13px; padding-right: 4px; padding-top: 6px; padding-bottom: 6px; }
-      #header-login-btn { font-size: 12px; padding: 4px 10px; }
-      #header-user-info { gap: 3px !important; flex-wrap: nowrap !important; }
-      #header-user-info button { font-size: 10px; padding: 3px 6px; white-space: nowrap; }
-      #header-role-label { font-size: 10px; }
-      #btn-switch-view { font-size: 10px !important; padding: 3px 5px !important; white-space: nowrap; }
-      #hamburger-btn { padding: 4px; }
+      /* 상단 네비 — 2행 구조 */
+      nav .mx-auto {
+        flex-wrap: wrap !important;
+        padding: 0 12px;
+      }
+      /* 1행: 타이틀 + 햄버거 (왼쪽) / 로그인 or 유저정보 (오른쪽) */
+      nav .mx-auto > div:first-child { flex: 1; min-width: 0; }
+      nav .text-base { font-size: 14px; padding: 10px 0; padding-right: 6px; }
+      #hamburger-btn { padding: 6px; }
+      #header-login-btn { font-size: 13px; padding: 6px 14px; }
+      /* 로그인 상태: 유저정보 2행으로 내려감 */
+      #header-user-info {
+        width: 100%;
+        order: 10;
+        justify-content: flex-end !important;
+        gap: 6px !important;
+        padding: 0 0 8px;
+        border-top: 1px solid #f3f4f6;
+        padding-top: 6px;
+        margin-top: -2px;
+      }
+      #header-user-info button { font-size: 12px; padding: 4px 10px; white-space: nowrap; }
+      #header-role-label { font-size: 12px; }
+      #btn-switch-view { font-size: 12px !important; padding: 4px 8px !important; white-space: nowrap; }
 
       /* 캘린더 페이지 패딩 축소 */
-      #page-calendar > .max-w-full { padding: 8px 8px 16px; }
+      #page-calendar > .max-w-full { padding: 10px 10px 16px; }
 
-      /* 캘린더 헤더 세로 배치 + 컴팩트 */
+      /* 캘린더 헤더 — 세로 배치, 왼쪽 정렬 */
       .calendar-header-wrap {
         flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 6px !important;
-        margin-bottom: 8px !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+        margin-bottom: 10px !important;
       }
-      .calendar-header-wrap > div { justify-content: center; }
-      .calendar-header-wrap h1 { font-size: 16px; }
-      .calendar-header-wrap .view-btn { padding: 4px 10px; font-size: 12px; }
-      #period-nav-monthly button, #period-nav-weekly button { padding: 4px 10px; font-size: 12px; }
-      #month-title, #week-title { font-size: 15px; }
+      .calendar-header-wrap > div { justify-content: flex-start; }
+      .calendar-header-wrap h1 { font-size: 17px; }
+      .calendar-header-wrap .view-btn { padding: 5px 12px; font-size: 13px; }
+      #period-nav-monthly, #period-nav-weekly { gap: 8px !important; }
+      #period-nav-monthly button, #period-nav-weekly button { padding: 5px 12px; font-size: 13px; }
+      #month-title, #week-title { font-size: 16px; }
 
-      /* 캘린더 셀 축소 */
-      .cell { min-width: 28px; height: 44px; }
-      .room-header { min-width: 56px; font-size: 10px; padding: 2px 3px; }
-      .date-header { min-width: 28px; font-size: 9px; padding: 3px 1px; }
-      .bar { font-size: 9px; padding: 1px 2px; }
-      .clean-bar { font-size: 9px; }
+      /* 캘린더 셀 */
+      .cell { min-width: 28px; height: 48px; }
+      .room-header { min-width: 58px; font-size: 11px; padding: 2px 4px; }
+      .date-header { min-width: 28px; font-size: 10px; padding: 3px 1px; }
+      .bar { font-size: 10px; padding: 1px 3px; }
+      .clean-bar { font-size: 10px; }
       #monthly-table { min-width: 900px !important; }
       #weekly-table { min-width: 560px !important; }
 
-      /* 범례 컴팩트 + 세로 배치 */
-      #pgm-legend { gap: 3px 6px !important; font-size: 10px !important; }
-      #pgm-legend + div { gap: 6px !important; font-size: 10px !important; white-space: nowrap; }
+      /* 범례 */
+      #pgm-legend { gap: 4px 8px !important; font-size: 11px !important; }
+      #pgm-legend + div { gap: 8px !important; font-size: 11px !important; white-space: nowrap; }
 
-      /* "+ 새 예약" 버튼 컴팩트 */
-      #btn-new-reservation { font-size: 12px; padding: 5px 12px; }
+      /* "+ 새 예약" 버튼 */
+      #btn-new-reservation { font-size: 13px; padding: 6px 14px; }
 
       /* 모달: 풀스크린 */
       #form-modal > div,
