@@ -36,8 +36,12 @@
     #monthly-table tr:hover > td.room-header,
     #weekly-table tr:hover > td.room-header { background-color: #e0f2fe !important; }
 
+    /* 로고 줄바꿈: 데스크탑 숨김, 모바일 표시 */
+    .mobile-br { display: none !important; }
+
     /* ========== 모바일 반응형 ========== */
     @media (max-width: 767px) {
+      .mobile-br { display: inline !important; }
       /* 네비게이션: 햄버거 메뉴 */
       .nav-tab { display: none; }
       .nav-tabs-open .nav-tab {
@@ -60,21 +64,18 @@
         flex-wrap: wrap !important;
         padding: 0 12px;
       }
-      /* 1행: 타이틀 + 햄버거 (왼쪽) / 로그인 or 유저정보 (오른쪽) */
       nav .mx-auto > div:first-child { flex: 1; min-width: 0; }
-      nav .text-base { font-size: 14px; padding: 10px 0; padding-right: 6px; }
-      #hamburger-btn { padding: 6px; }
+      /* 로고: 2줄 허용, 햄버거 옆 배치 */
+      nav .text-base { font-size: 14px; padding: 8px 0; padding-right: 6px; white-space: normal !important; line-height: 1.3; }
+      #hamburger-btn { padding: 6px; flex-shrink: 0; }
       #header-login-btn { font-size: 13px; padding: 6px 14px; }
-      /* 로그인 상태: 유저정보 2행으로 내려감 */
+      /* 로그인 상태: 유저정보 2행 — 구분선 없음 */
       #header-user-info {
         width: 100%;
         order: 10;
         justify-content: flex-end !important;
         gap: 6px !important;
-        padding: 0 0 8px;
-        border-top: 1px solid #f3f4f6;
-        padding-top: 6px;
-        margin-top: -2px;
+        padding-bottom: 8px;
       }
       #header-user-info button { font-size: 12px; padding: 4px 10px; white-space: nowrap; }
       #header-role-label { font-size: 12px; }
@@ -83,19 +84,31 @@
       /* 캘린더 페이지 패딩 축소 */
       #page-calendar > .max-w-full { padding: 10px 10px 16px; }
 
-      /* 캘린더 헤더 — 세로 배치, 왼쪽 정렬 */
+      /* 캘린더 헤더 — 세로 배치 */
       .calendar-header-wrap {
         flex-direction: column !important;
-        align-items: flex-start !important;
+        align-items: stretch !important;
         gap: 8px !important;
         margin-bottom: 10px !important;
       }
-      .calendar-header-wrap > div { justify-content: flex-start; }
+      /* 예약 캘린더 + 월간/주간: 세로 분리 */
+      .calendar-header-wrap > div:first-child {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 6px !important;
+      }
+      /* 월간/주간 토글: 중앙 */
+      .calendar-header-wrap > div:first-child > div {
+        align-self: center;
+      }
       .calendar-header-wrap h1 { font-size: 17px; }
-      .calendar-header-wrap .view-btn { padding: 5px 12px; font-size: 13px; }
-      #period-nav-monthly, #period-nav-weekly { gap: 8px !important; }
+      .calendar-header-wrap .view-btn { padding: 5px 14px; font-size: 13px; }
+      /* 월 표기: 중앙 */
+      #period-nav-monthly, #period-nav-weekly { justify-content: center !important; gap: 8px !important; }
       #period-nav-monthly button, #period-nav-weekly button { padding: 5px 12px; font-size: 13px; }
       #month-title, #week-title { font-size: 16px; }
+      /* + 새 예약: 우측 정렬 */
+      .calendar-header-wrap > div:last-child { justify-content: flex-end !important; }
 
       /* 캘린더 셀 */
       .cell { min-width: 28px; height: 48px; }
@@ -187,11 +200,11 @@
   <nav class="bg-white border-b shadow-sm sticky top-0 z-50">
     <div class="mx-auto flex items-center justify-between px-4">
       <div class="flex items-center gap-1 flex-wrap">
-        <span class="text-base font-bold py-3 pr-4 whitespace-nowrap">🏕 <span class="text-blue-500">러스틱타운</span> 심청예약관리</span>
-        <!-- 햄버거 버튼 (모바일) -->
+        <!-- 햄버거 버튼 (모바일) — 로고 왼쪽 -->
         <button id="hamburger-btn" class="md:hidden p-2 rounded hover:bg-gray-100" onclick="toggleMobileNav()">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
+        <span class="text-base font-bold py-3 pr-4 whitespace-nowrap">🏕 <span class="text-blue-500">러스틱타운</span><br class="mobile-br"> 심청예약관리</span>
         <div id="nav-tabs-container" class="nav-tabs-container hidden md:flex items-center gap-1">
           <div class="nav-tab active" onclick="showPage('calendar');closeMobileNav()">캘린더</div>
           <div id="nav-reservations" class="nav-tab" onclick="showPage('reservations');closeMobileNav()">예약 리스트</div>
