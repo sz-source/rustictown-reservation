@@ -55,22 +55,47 @@
       }
       .nav-tabs-container { width: 100%; order: 10; }
 
-      /* 캘린더 헤더 세로 배치 */
+      /* 상단 네비 컴팩트 */
+      nav .mx-auto { padding: 6px 10px; }
+      nav .text-base { font-size: 13px; padding-right: 4px; padding-top: 6px; padding-bottom: 6px; }
+      #header-login-btn { font-size: 12px; padding: 4px 10px; }
+      #header-user-info { gap: 3px !important; flex-wrap: nowrap !important; }
+      #header-user-info button { font-size: 10px; padding: 3px 6px; white-space: nowrap; }
+      #header-role-label { font-size: 10px; }
+      #btn-switch-view { font-size: 10px !important; padding: 3px 5px !important; white-space: nowrap; }
+      #hamburger-btn { padding: 4px; }
+
+      /* 캘린더 페이지 패딩 축소 */
+      #page-calendar > .max-w-full { padding: 8px 8px 16px; }
+
+      /* 캘린더 헤더 세로 배치 + 컴팩트 */
       .calendar-header-wrap {
         flex-direction: column !important;
         align-items: stretch !important;
-        gap: 8px !important;
+        gap: 6px !important;
+        margin-bottom: 8px !important;
       }
       .calendar-header-wrap > div { justify-content: center; }
+      .calendar-header-wrap h1 { font-size: 16px; }
+      .calendar-header-wrap .view-btn { padding: 4px 10px; font-size: 12px; }
+      #period-nav-monthly button, #period-nav-weekly button { padding: 4px 10px; font-size: 12px; }
+      #month-title, #week-title { font-size: 15px; }
 
       /* 캘린더 셀 축소 */
-      .cell { min-width: 28px; height: 50px; }
-      .room-header { min-width: 60px; font-size: 11px; padding: 2px 4px; }
-      .date-header { min-width: 28px; font-size: 10px; }
-      .bar { font-size: 10px; padding: 1px 3px; }
-      .clean-bar { font-size: 10px; }
-      #monthly-table { min-width: 950px !important; }
-      #weekly-table { min-width: 600px !important; }
+      .cell { min-width: 28px; height: 44px; }
+      .room-header { min-width: 56px; font-size: 10px; padding: 2px 3px; }
+      .date-header { min-width: 28px; font-size: 9px; padding: 3px 1px; }
+      .bar { font-size: 9px; padding: 1px 2px; }
+      .clean-bar { font-size: 9px; }
+      #monthly-table { min-width: 900px !important; }
+      #weekly-table { min-width: 560px !important; }
+
+      /* 범례 컴팩트 + 세로 배치 */
+      #pgm-legend { gap: 3px 6px !important; font-size: 10px !important; }
+      #pgm-legend + div { gap: 6px !important; font-size: 10px !important; white-space: nowrap; }
+
+      /* "+ 새 예약" 버튼 컴팩트 */
+      #btn-new-reservation { font-size: 12px; padding: 5px 12px; }
 
       /* 모달: 풀스크린 */
       #form-modal > div,
@@ -86,6 +111,10 @@
         overflow-y: auto;
       }
       .modal-overlay { padding: 0 !important; }
+
+      /* 모달 내부 패딩 축소 */
+      #form-modal .p-5, #detail-modal .p-5,
+      #cleaning-modal .p-5, #pgm-modal .p-5 { padding: 12px; }
 
       /* 예약 리스트: 카드 레이아웃 */
       #reservations-tbody tr {
@@ -119,6 +148,9 @@
 
       /* 운영현황 스크롤 */
       .ops-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+      /* 드래그 툴팁 모바일 숨기기 */
+      .drag-tooltip { display: none !important; }
     }
 
     /* 터치 스크롤 최적화 */
@@ -299,7 +331,7 @@
         </div>
         <div class="flex items-center gap-2">
           <span id="drag-hint" class="text-xs text-gray-400 hidden"></span>
-          <button id="btn-multi-select" class="md:hidden px-3 py-1.5 border rounded text-sm hover:bg-blue-50 transition-colors" onclick="toggleMultiSelectMode(this)">⊞ 다중선택</button>
+          <button id="btn-multi-select" class="hidden px-3 py-1.5 border rounded text-sm hover:bg-blue-50 transition-colors" onclick="toggleMultiSelectMode(this)">⊞ 다중선택</button>
           <span id="multi-select-badge" class="hidden text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full whitespace-nowrap"></span>
           <button id="btn-new-reservation" class="bg-blue-500 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-600" onclick="openNewReservationForm()">+ 새 예약</button>
         </div>
@@ -1538,6 +1570,9 @@
     const roomNames = rooms.map(r => r.name);
     let _dragSetupDone = false; // setupDrag 중복 등록 방지
 
+    // 터치 디바이스 감지 (모바일에서 마우스 이벤트 차단용)
+    const _isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
     function setupDrag() {
       if (_dragSetupDone) return;
       _dragSetupDone = true;
@@ -1549,6 +1584,8 @@
       }
 
       table.addEventListener('mousedown', (e) => {
+        // 모바일(터치 디바이스)에서는 마우스 드래그 비활성화
+        if (_isTouchDevice) return;
         // If clicked on a clean-bar, skip drag — let the clean-bar's own onclick handle toggle
         if (e.target.closest('.clean-bar')) return;
         // Disable pointer events on bars FIRST so elementFromPoint sees actual cells
@@ -1575,7 +1612,7 @@
       });
 
       table.addEventListener('mousemove', (e) => {
-        if (!dragState) return;
+        if (_isTouchDevice || !dragState) return;
         const cell = getCellAt(e.clientX, e.clientY);
         const day = cell && cell.dataset.day ? +cell.dataset.day : null;
         if (cell && day) {
@@ -1591,7 +1628,7 @@
       });
 
       document.addEventListener('mouseup', (e) => {
-        if (!dragState) return;
+        if (_isTouchDevice || !dragState) return;
         tooltip.classList.add('hidden');
 
         // Restore pointer events on bars
@@ -1715,150 +1752,63 @@
       });
     }
 
-    // ========== TOUCH EVENTS (모바일 캘린더 드래그) ==========
-    let _touchSetupDone = false; // setupTouch 중복 등록 방지
+    // ========== TOUCH EVENTS (모바일: 싱글탭 상세보기만, 드래그 비활성화) ==========
+    let _touchSetupDone = false;
     function setupTouch() {
       const table = document.getElementById('monthly-table');
       if (!table) return;
       if (_touchSetupDone) return;
       _touchSetupDone = true;
 
-      function getCellAt(x, y) {
-        const el = document.elementFromPoint(x, y);
-        return el ? el.closest('td.cell') : null;
-      }
+      let _touchStartCell = null; // 탭 감지용
+      let _touchStartX = 0;
+      let _touchStartY = 0;
+      let _touchMoved = false;
 
       table.addEventListener('touchstart', (e) => {
-        if (e.target.closest('.clean-bar') || e.target.closest('.bar')) return;
+        _touchMoved = false;
         const touch = e.touches[0];
-        document.querySelectorAll('.bar, .clean-bar').forEach(b => b.style.pointerEvents = 'none');
-        const cell = getCellAt(touch.clientX, touch.clientY);
-        if (!cell) { document.querySelectorAll('.bar, .clean-bar').forEach(b => b.style.pointerEvents = 'auto'); return; }
-        const day = cell.dataset.day ? +cell.dataset.day : null;
-        const roomName = cell.dataset.room;
-        if (!day || !roomName || isRoomDisabled(roomName)) {
-          document.querySelectorAll('.bar, .clean-bar').forEach(b => b.style.pointerEvents = 'auto');
+        _touchStartX = touch.clientX;
+        _touchStartY = touch.clientY;
+        // 바/청소바 터치는 기본 동작에 맡김
+        if (e.target.closest('.bar') || e.target.closest('.clean-bar')) {
+          _touchStartCell = null;
           return;
         }
-        // 모바일: 다중선택 모드가 아니면 기존 선택 초기화
-        if (!multiSelectMode) multiSelections = [];
-        dragState = { startRoom: roomName, currentRoom: roomName, startDay: day, currentDay: day, startY: touch.clientY };
-        highlightCells();
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        const cell = el ? el.closest('td.cell') : null;
+        _touchStartCell = cell;
+        // 스크롤을 막지 않음 (passive: true) — 자연스러운 터치 스크롤 허용
       }, { passive: true });
 
       table.addEventListener('touchmove', (e) => {
-        if (!dragState) return;
-        e.preventDefault(); // 스크롤 방지
+        // 드래그 하지 않으므로 스크롤을 막지 않음 — 자연스러운 가로/세로 스크롤
         const touch = e.touches[0];
-        const cell = getCellAt(touch.clientX, touch.clientY);
-        if (cell && cell.dataset.day) {
-          dragState.currentDay = +cell.dataset.day;
-          // 세로 이동이 30px 이상일 때만 숙소 변경 (가로 드래그 시 오선택 방지)
-          if (cell.dataset.room && Math.abs(touch.clientY - dragState.startY) > 30) {
-            dragState.currentRoom = cell.dataset.room;
-          }
-          highlightCells();
-        }
-        tooltip.style.left = (touch.clientX + 12) + 'px';
-        tooltip.style.top = (touch.clientY - 40) + 'px';
-      }, { passive: false });
+        const dx = Math.abs(touch.clientX - _touchStartX);
+        const dy = Math.abs(touch.clientY - _touchStartY);
+        if (dx > 8 || dy > 8) _touchMoved = true;
+      }, { passive: true });
 
       table.addEventListener('touchend', (e) => {
-        if (!dragState) return;
-        document.querySelectorAll('.bar, .clean-bar').forEach(b => b.style.pointerEvents = 'auto');
-        tooltip.classList.add('hidden');
+        // 움직임 없는 싱글탭만 처리 (스크롤/드래그 시 무시)
+        if (_touchMoved || !_touchStartCell) { _touchStartCell = null; return; }
+        const cell = _touchStartCell;
+        _touchStartCell = null;
+        const day = cell.dataset.day ? +cell.dataset.day : null;
+        const roomName = cell.dataset.room;
+        if (!day || !roomName) return;
 
-        // 싱글탭 감지: 기존 예약이면 상세보기
-        const isSingleTap = dragState.startDay === dragState.currentDay && dragState.startRoom === dragState.currentRoom;
-        if (isSingleTap) {
-          const clickOff = toDayOffset(calYear, calMonth, dragState.startDay);
-          const tapRes = reservations.find(r => r.room === dragState.startRoom && clickOff >= r.ci && clickOff <= r.co);
-          if (tapRes) {
-            const monthBase = toDayOffset(calYear, calMonth, 1);
-            const visStartDay = Math.max(tapRes.ci, monthBase) - monthBase + 1;
-            const ciCell = document.querySelector(`td.cell[data-room="${CSS.escape(dragState.startRoom)}"][data-day="${visStartDay}"]`);
-            const bar = ciCell ? ciCell.querySelector('.bar') : null;
-            dragState = null;
-            clearHighlight();
-            if (multiSelections.length > 0) highlightCells();
-            if (bar) showDetail(bar);
-            return;
-          }
+        // 기존 예약이 있으면 상세보기
+        const clickOff = toDayOffset(calYear, calMonth, day);
+        const tapRes = reservations.find(r => r.room === roomName && clickOff >= r.ci && clickOff <= r.co);
+        if (tapRes) {
+          const monthBase = toDayOffset(calYear, calMonth, 1);
+          const visStartDay = Math.max(tapRes.ci, monthBase) - monthBase + 1;
+          const ciCell = document.querySelector(`td.cell[data-room="${CSS.escape(roomName)}"][data-day="${visStartDay}"]`);
+          const bar = ciCell ? ciCell.querySelector('.bar') : null;
+          if (bar) showDetail(bar);
         }
-
-        const fromDay = Math.min(dragState.startDay, dragState.currentDay);
-        const toDay = Math.max(dragState.startDay, dragState.currentDay);
-        const ri1 = roomNames.indexOf(dragState.startRoom);
-        const ri2 = roomNames.indexOf(dragState.currentRoom);
-        const fromRoom = Math.min(ri1, ri2);
-        const toRoom = Math.max(ri1, ri2);
-        const selectedRooms = roomNames.slice(fromRoom, toRoom + 1).filter(r => !isRoomDisabled(r));
-
-        if (selectedRooms.length === 0) { dragState = null; clearHighlight(); if (multiSelections.length > 0) highlightCells(); return; }
-
-        // 모바일 다중선택 모드: 선택만 저장
-        if (multiSelectMode && currentRole === 'admin') {
-          multiSelections.push({
-            startRoom: roomNames[fromRoom],
-            endRoom: roomNames[toRoom],
-            startDay: fromDay, endDay: toDay,
-            selectedRooms: [...selectedRooms],
-            year: calYear, month: calMonth
-          });
-          _lastMultiSelectTime = Date.now();
-          dragState = null;
-          clearHighlight();
-          highlightCells();
-          updateMultiSelectBadge();
-          return;
-        }
-
-        // 최종 모달 열기: 다중 선택 + 현재 드래그를 합산
-        const allSelections = [...multiSelections];
-        if (selectedRooms.length > 0) {
-          allSelections.push({ startRoom: roomNames[fromRoom], endRoom: roomNames[toRoom], startDay: fromDay, endDay: toDay, selectedRooms: [...selectedRooms], year: calYear, month: calMonth });
-        }
-
-        if (currentRole === 'admin') {
-          if (allSelections.length > 1 || (allSelections.length === 1 && allSelections[0].selectedRooms.length > 1)) {
-            switchFormTab('bulk', document.querySelectorAll('#form-tabs button')[1]);
-            populateBulkProgram();
-            fillBulkFromMultiSelections(allSelections);
-            showBulkSelectionInfo(allSelections);
-          } else {
-            const sel = allSelections[0];
-            const y = sel.year || calYear;
-            const m = sel.month || calMonth;
-            document.getElementById('form-room').value = selectedRooms[0];
-            document.getElementById('form-checkin').value = `${y}-${String(m).padStart(2,'0')}-${String(fromDay).padStart(2,'0')}`;
-            document.getElementById('form-checkout').value = `${y}-${String(m).padStart(2,'0')}-${String(toDay).padStart(2,'0')}`;
-          }
-          openModal('form-modal');
-        } else if (currentRole === 'cleaning') {
-          const dateStart = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(fromDay).padStart(2,'0')}`;
-          const dateEnd = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(toDay).padStart(2,'0')}`;
-          document.getElementById('clean-date-start').value = dateStart;
-          document.getElementById('clean-date-end').value = dateEnd;
-          const infoArea = document.getElementById('clean-drag-info');
-          const roomWrapper = document.getElementById('clean-room-wrapper');
-          if (selectedRooms.length > 1) {
-            draggedCleanRooms = [...selectedRooms];
-            if (infoArea) infoArea.innerHTML = `<div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700 mb-3">🧹 선택된 숙소: <strong>${selectedRooms.join(', ')}</strong> (${selectedRooms.length}실) · ${calMonth}/${fromDay}~${calMonth}/${toDay}</div>`;
-            if (roomWrapper) roomWrapper.classList.add('hidden');
-          } else {
-            draggedCleanRooms = [];
-            document.getElementById('clean-room-select').value = selectedRooms[0];
-            if (infoArea) infoArea.innerHTML = '';
-            if (roomWrapper) roomWrapper.classList.remove('hidden');
-          }
-          const existing = findExistingCleanInRange(selectedRooms, fromDay, toDay);
-          updateCleanModalButtons(existing);
-          openModal('cleaning-modal');
-        }
-        multiSelections = [];
-        updateMultiSelectBadge();
-        clearHighlight();
-        dragState = null;
+        // 빈 셀 탭: 아무 동작 안 함 (드래그 비활성화이므로)
       });
     }
 
