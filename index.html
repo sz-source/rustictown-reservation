@@ -1250,28 +1250,30 @@
               // 월 경계 감지: 예약이 이전/다음 달에서 이어지는지
               const fromPrev = res.ci < monthOffsetStart;  // 이전 달에서 이어짐
               const toNext = res.co > monthOffsetEnd;      // 다음 달로 이어짐
-              const arrowLeft = fromPrev ? '◀ ' : '';
-              const arrowRight = toNext ? ' ▶' : '';
-              // 월 경계 바: 짧은 span에서 간결한 라벨 사용
+              const isBoundary = fromPrev || toNext;
+              // 라벨: 월 경계든 아니든 항상 이름 + 프로그램명 표시
               let label;
               if (isCleanMode) {
                 label = (hasBedding && span >= 3) ? `${res.count}명 · ${beddingText}` : `${res.count}명`;
-              } else if (fromPrev || toNext) {
-                // 월 경계: 짧은 바에도 이름 + 화살표 표시
-                label = span >= 4 ? `${arrowLeft}${nameLabel} · ${pgmLabel(res.pgm)}${arrowRight}` : `${arrowLeft}${nameLabel}${arrowRight}`;
               } else {
                 label = span >= 3 ? `${nameLabel} · ${pgmLabel(res.pgm)}` : nameLabel;
               }
               const beddingIcon = hasBedding ? '<span style="font-size:11px;vertical-align:middle;flex-shrink:0" title="추가침구">🔴</span>' : '';
               const beddingBorder = hasBedding ? 'border:2px dashed rgba(255,255,255,0.6);' : '';
-              // 월 경계 바: left edge에서 시작하도록 (이전달에서 이어질 때)
-              const barAlign = fromPrev ? 'justify-content:flex-start;padding-left:3px;' : 'justify-content:center;';
+              // 월 경계 좁은 바(span<=3): overflow visible + 텍스트에 배경색
+              const isNarrowBoundary = isBoundary && span <= 3;
+              const barOverflow = isNarrowBoundary ? 'overflow:visible;' : 'overflow:hidden;';
+              const spanBg = isNarrowBoundary ? `background:${color};border-radius:4px;padding:0 4px;` : '';
+              // 월 경계 좁은 바에서는 항상 이름+프로그램 표시
+              if (isNarrowBoundary && !isCleanMode) {
+                label = `${nameLabel} · ${pgmLabel(res.pgm)}`;
+              }
 
               if (day === visStart) {
                 const halfCell = span > 1;
                 const barLeft = fromPrev ? 'left:0;' : (halfCell ? 'left:50%;' : 'left:2px;');
                 const barWidth = fromPrev ? (span > 1 ? `calc(${span * 100}% - 2px)` : 'calc(100% - 4px)') : (halfCell ? `calc(${(span - 1) * 100}% + ${(span - 1)}px)` : 'calc(100% - 4px)');
-                cellContent += `<div class="bar" style="position:absolute;top:4px;${barLeft}width:${barWidth};background:${color};${textColor};${beddingBorder}display:flex;align-items:center;${barAlign}gap:2px;z-index:2;pointer-events:auto;overflow:hidden" onclick="if(!window._dragOccurred)showDetail(this)" data-res='${JSON.stringify(res)}'>${beddingIcon}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span></div>`;
+                cellContent += `<div class="bar" style="position:absolute;top:4px;${barLeft}width:${barWidth};background:${color};${textColor};${beddingBorder}display:flex;align-items:center;justify-content:flex-start;padding-left:3px;gap:2px;z-index:${isNarrowBoundary?5:2};pointer-events:auto;${barOverflow}" onclick="if(!window._dragOccurred)showDetail(this)" data-res='${JSON.stringify(res)}'>${beddingIcon}<span style="${spanBg}white-space:nowrap;${isNarrowBoundary?'':'overflow:hidden;text-overflow:ellipsis;'}">${label}</span></div>`;
               }
             }
 
