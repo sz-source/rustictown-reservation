@@ -1085,12 +1085,27 @@
     }
 
     // Global cleaning schedule (used by calendar and cleaning table)
+    // Each entry: { room, date: "YYYY-MM-DD", person, done }
     const cleaningSchedule = [];
+    function _cds(y, m, d) { return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+    function _cdDay(dateStr) { return +dateStr.split('-')[2]; }
+    function _cdMonth(dateStr) { return +dateStr.split('-')[1]; }
+    function _cdYear(dateStr) { return +dateStr.split('-')[0]; }
+    function _cdPrefix(y, m) { return `${y}-${String(m).padStart(2,'0')}`; }
     function saveCleaningToStorage() { try { localStorage.setItem('cleaningSchedule', JSON.stringify(cleaningSchedule)); } catch(e) {} }
     function loadCleaningFromStorage() {
       try {
         const saved = localStorage.getItem('cleaningSchedule');
-        if (saved) { cleaningSchedule.length = 0; cleaningSchedule.push(...JSON.parse(saved)); return true; }
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          cleaningSchedule.length = 0;
+          // 마이그레이션: 이전 day-only 형식 → date 형식
+          parsed.forEach(c => {
+            if (!c.date && c.day) c.date = _cds(2026, 3, c.day);
+            cleaningSchedule.push(c);
+          });
+          return true;
+        }
       } catch(e) {}
       return false;
     }
@@ -1098,16 +1113,17 @@
       cleaningSchedule.length = 0;
       // 3/2(월) 청소완료 — 다람쥐 프로그램 입실 전 전체 청소
       rooms.filter(r => !isRoomDisabled(r.name)).slice(0, 17).forEach((room, i) => {
-        cleaningSchedule.push({ room: room.name, day: 2, person: i < 9 ? '김미숙' : '이정희', done: true });
+        cleaningSchedule.push({ room: room.name, date: '2026-03-02', person: i < 9 ? '김미숙' : '이정희', done: true });
       });
       // 3/9(월)~3/10(화) 청소예정 — 다람쥐 퇴실 후 문장의방 입실 전 청소 (오후4시 전까지)
       rooms.filter(r => !isRoomDisabled(r.name)).slice(0, 17).forEach((room, i) => {
-        cleaningSchedule.push({ room: room.name, day: 9, person: i < 9 ? '김미숙' : '이정희', done: false });
-        cleaningSchedule.push({ room: room.name, day: 10, person: i < 9 ? '김미숙' : '이정희', done: false });
+        cleaningSchedule.push({ room: room.name, date: '2026-03-09', person: i < 9 ? '김미숙' : '이정희', done: false });
+        cleaningSchedule.push({ room: room.name, date: '2026-03-10', person: i < 9 ? '김미숙' : '이정희', done: false });
       });
     }
     function getCleaningForCell(roomName, day) {
-      return cleaningSchedule.find(c => c.room === roomName && c.day === day);
+      const dateStr = _cds(calYear, calMonth, day);
+      return cleaningSchedule.find(c => c.room === roomName && c.date === dateStr);
     }
 
     // March 2026 day-of-week: 1=Sun, 2=Mon, ..., 7=Sat, 8=Sun, 9=Mon(today), ...
@@ -1175,18 +1191,22 @@
       return Object.values(groups).sort((a, b) => a.ci - b.ci);
     }
 
-    // Cleaning spans helper - groups consecutive cleaning days per room
+    // Cleaning spans helper - groups consecutive cleaning days per room (현재 월만)
     function getCleaningSpans(roomName) {
-      const roomCleans = cleaningSchedule.filter(c => c.room === roomName).sort((a, b) => a.day - b.day);
+      const prefix = _cdPrefix(calYear, calMonth);
+      const roomCleans = cleaningSchedule
+        .filter(c => c.room === roomName && c.date.startsWith(prefix))
+        .sort((a, b) => a.date.localeCompare(b.date));
       const spans = [];
       let i = 0;
       while (i < roomCleans.length) {
         const start = roomCleans[i];
-        let endDay = start.day;
-        while (i + 1 < roomCleans.length && roomCleans[i + 1].day === endDay + 1 && roomCleans[i + 1].done === start.done) {
-          i++; endDay = roomCleans[i].day;
+        const startDay = _cdDay(start.date);
+        let endDay = startDay;
+        while (i + 1 < roomCleans.length && _cdDay(roomCleans[i + 1].date) === endDay + 1 && roomCleans[i + 1].done === start.done) {
+          i++; endDay = _cdDay(roomCleans[i].date);
         }
-        spans.push({ startDay: start.day, endDay, done: start.done, person: start.person });
+        spans.push({ startDay, endDay, done: start.done, person: start.person });
         i++;
       }
       return spans;
@@ -1299,7 +1319,8 @@
                 const barLeft = halfCell ? 'left:50%;' : 'left:2px;';
                 const barWidth = halfCell ? `calc(${(spanLen - 1) * 100}% + ${(spanLen - 1)}px)` : 'calc(100% - 4px)';
                 const cleanLabel = cleanSpan.done ? '완료' : '예정';
-                cellContent += `<div class="clean-bar" data-clean-room="${room.name}" data-clean-day="${cleanSpan.startDay}" onclick="showCleanPopup('${room.name}',${cleanSpan.startDay},event)" style="position:absolute;bottom:2px;${barLeft}width:${barWidth};background:${cleanSpan.done?'#d1fae5':'#fef3c7'};color:${cleanSpan.done?'#065f46':'#92400e'};z-index:3;padding:2px 4px;font-size:12px;border-radius:4px;text-align:center;white-space:nowrap;overflow:hidden;pointer-events:auto;cursor:pointer">${cleanLabel}</div>`;
+                const cleanDateStr = _cds(calYear, calMonth, cleanSpan.startDay);
+                cellContent += `<div class="clean-bar" data-clean-room="${room.name}" data-clean-date="${cleanDateStr}" onclick="showCleanPopup('${room.name}','${cleanDateStr}',event)" style="position:absolute;bottom:2px;${barLeft}width:${barWidth};background:${cleanSpan.done?'#d1fae5':'#fef3c7'};color:${cleanSpan.done?'#065f46':'#92400e'};z-index:3;padding:2px 4px;font-size:12px;border-radius:4px;text-align:center;white-space:nowrap;overflow:hidden;pointer-events:auto;cursor:pointer">${cleanLabel}</div>`;
               }
             }
 
@@ -1965,21 +1986,23 @@
 
     function renderOpsCleaning() {
       const tbody = document.getElementById('ops-cleaning-tbody');
-      // cleaningSchedule 전체를 날짜 순으로 정렬하여 표시
+      // 현재 월의 cleaningSchedule만 날짜 순으로 정렬하여 표시
+      const prefix = _cdPrefix(calYear, calMonth);
       const cleanings = cleaningSchedule
+        .filter(c => c.date.startsWith(prefix))
         .slice()
-        .sort((a, b) => a.day - b.day || a.room.localeCompare(b.room))
-        .map(c => ({ room: c.room, day: c.day, date: `${calMonth}/${c.day}`, person: c.person, done: c.done }));
+        .sort((a, b) => a.date.localeCompare(b.date) || a.room.localeCompare(b.room))
+        .map(c => ({ room: c.room, date: c.date, displayDate: `${_cdMonth(c.date)}/${_cdDay(c.date)}`, person: c.person, done: c.done }));
 
       let html = '';
       cleanings.forEach((c, i) => {
         const bg = i % 2 === 1 ? ' bg-gray-50' : '';
         const star = isPremium(c.room) ? '<span class="text-amber-500 ml-0.5">&#9733;</span>' : '';
         const statusBadge = c.done
-          ? `<span class="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 cursor-pointer" title="클릭하여 상태 변경" onclick="toggleCleanStatus('${c.room}',${c.day})">청소완료</span>`
-          : `<span class="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 cursor-pointer" title="클릭하여 상태 변경" onclick="toggleCleanStatus('${c.room}',${c.day})">청소예정</span>`;
-        const delBtn = `<button class="text-red-400 hover:text-red-600 text-xs" onclick="deleteCleaning('${c.room}',${c.day})">삭제</button>`;
-        html += `<tr class="border-t${bg}"><td class="px-4 py-3 font-medium">${c.room}${star}</td><td class="text-center">${c.date}</td><td class="text-center">${c.person}</td><td class="text-center">${statusBadge}</td><td class="text-center">${delBtn}</td></tr>`;
+          ? `<span class="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 cursor-pointer" title="클릭하여 상태 변경" onclick="toggleCleanStatus('${c.room}','${c.date}')">청소완료</span>`
+          : `<span class="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 cursor-pointer" title="클릭하여 상태 변경" onclick="toggleCleanStatus('${c.room}','${c.date}')">청소예정</span>`;
+        const delBtn = `<button class="text-red-400 hover:text-red-600 text-xs" onclick="deleteCleaning('${c.room}','${c.date}')">삭제</button>`;
+        html += `<tr class="border-t${bg}"><td class="px-4 py-3 font-medium">${c.room}${star}</td><td class="text-center">${c.displayDate}</td><td class="text-center">${c.person}</td><td class="text-center">${statusBadge}</td><td class="text-center">${delBtn}</td></tr>`;
       });
       if (tbody) tbody.innerHTML = html;
 
@@ -1991,15 +2014,15 @@
     }
 
     // ========== 청소 뱃지 팝업 ==========
-    let _cleanPopupRoom = null, _cleanPopupDay = null;
-    function showCleanPopup(room, day, evt) {
+    let _cleanPopupRoom = null, _cleanPopupDate = null;
+    function showCleanPopup(room, dateStr, evt) {
       evt.stopPropagation();
-      const item = cleaningSchedule.find(c => c.room === room && c.day === day);
+      const item = cleaningSchedule.find(c => c.room === room && c.date === dateStr);
       if (!item) return;
       _cleanPopupRoom = room;
-      _cleanPopupDay = day;
+      _cleanPopupDate = dateStr;
       const popup = document.getElementById('clean-popup');
-      document.getElementById('clean-popup-info').textContent = `${room} · ${calMonth}/${day}`;
+      document.getElementById('clean-popup-info').textContent = `${room} · ${_cdMonth(dateStr)}/${_cdDay(dateStr)}`;
       document.getElementById('clean-popup-status').textContent = item.done ? '✅ 청소완료' : '🧹 청소예정';
       document.getElementById('clean-popup-toggle').textContent = item.done ? '예정으로 변경' : '완료로 변경';
       popup.classList.remove('hidden');
@@ -2017,16 +2040,16 @@
     function hideCleanPopup() {
       document.getElementById('clean-popup').classList.add('hidden');
       _cleanPopupRoom = null;
-      _cleanPopupDay = null;
+      _cleanPopupDate = null;
     }
     function cleanPopupToggle() {
-      if (_cleanPopupRoom && _cleanPopupDay) toggleCleanStatus(_cleanPopupRoom, _cleanPopupDay);
+      if (_cleanPopupRoom && _cleanPopupDate) toggleCleanStatus(_cleanPopupRoom, _cleanPopupDate);
       hideCleanPopup();
     }
     function cleanPopupDelete() {
-      if (_cleanPopupRoom && _cleanPopupDay) {
-        if (confirm(`${_cleanPopupRoom} ${calMonth}/${_cleanPopupDay} 청소 일정을 삭제하시겠습니까?`)) {
-          deleteCleaning(_cleanPopupRoom, _cleanPopupDay);
+      if (_cleanPopupRoom && _cleanPopupDate) {
+        if (confirm(`${_cleanPopupRoom} ${_cdMonth(_cleanPopupDate)}/${_cdDay(_cleanPopupDate)} 청소 일정을 삭제하시겠습니까?`)) {
+          deleteCleaning(_cleanPopupRoom, _cleanPopupDate);
         }
       }
       hideCleanPopup();
@@ -2040,16 +2063,18 @@
     });
 
     // ========== TOGGLE CLEANING STATUS ==========
-    function toggleCleanStatus(room, day) {
-      const item = cleaningSchedule.find(c => c.room === room && c.day === day);
+    function toggleCleanStatus(room, dateStr) {
+      const item = cleaningSchedule.find(c => c.room === room && c.date === dateStr);
       if (!item) return;
       const targetDone = item.done;
-      const roomCleans = cleaningSchedule.filter(c => c.room === room).sort((a, b) => a.day - b.day);
+      const prefix = dateStr.substring(0, 7); // "YYYY-MM"
+      const roomCleans = cleaningSchedule.filter(c => c.room === room && c.date.startsWith(prefix)).sort((a, b) => a.date.localeCompare(b.date));
+      const day = _cdDay(dateStr);
       let startDay = day;
-      while (roomCleans.some(c => c.day === startDay - 1 && c.done === targetDone)) startDay--;
+      while (roomCleans.some(c => _cdDay(c.date) === startDay - 1 && c.done === targetDone)) startDay--;
       let endDay = day;
-      while (roomCleans.some(c => c.day === endDay + 1 && c.done === targetDone)) endDay++;
-      roomCleans.filter(c => c.day >= startDay && c.day <= endDay && c.done === targetDone)
+      while (roomCleans.some(c => _cdDay(c.date) === endDay + 1 && c.done === targetDone)) endDay++;
+      roomCleans.filter(c => { const d = _cdDay(c.date); return d >= startDay && d <= endDay && c.done === targetDone; })
         .forEach(c => c.done = !c.done);
       saveCleaningToStorage();
       renderOpsCleaning();
@@ -2099,10 +2124,10 @@
       for (const room of targetRooms) {
         const current = new Date(startDate);
         while (current <= endDate) {
-          const day = current.getDate();
-          const exists = cleaningSchedule.find(c => c.room === room && c.day === day);
+          const dateStr = _cds(current.getFullYear(), current.getMonth() + 1, current.getDate());
+          const exists = cleaningSchedule.find(c => c.room === room && c.date === dateStr);
           if (!exists) {
-            cleaningSchedule.push({ room, day, person, done: false });
+            cleaningSchedule.push({ room, date: dateStr, person, done: false });
             added++;
           }
           current.setDate(current.getDate() + 1);
@@ -2121,8 +2146,8 @@
       renderWeekly();
     }
 
-    function deleteCleaning(room, day) {
-      const idx = cleaningSchedule.findIndex(c => c.room === room && c.day === day);
+    function deleteCleaning(room, dateStr) {
+      const idx = cleaningSchedule.findIndex(c => c.room === room && c.date === dateStr);
       if (idx === -1) return;
       cleaningSchedule.splice(idx, 1);
       saveCleaningToStorage();
@@ -2136,7 +2161,7 @@
       const count = _cleanDragExisting.length;
       if (!confirm(`${count}건의 청소 일정을 일괄 삭제하시겠습니까?`)) return;
       for (const item of _cleanDragExisting) {
-        const idx = cleaningSchedule.findIndex(c => c.room === item.room && c.day === item.day);
+        const idx = cleaningSchedule.findIndex(c => c.room === item.room && c.date === item.date);
         if (idx !== -1) cleaningSchedule.splice(idx, 1);
       }
       saveCleaningToStorage();
@@ -2150,7 +2175,9 @@
 
     // 드래그 범위 내 기존 청소 일정 찾기
     function findExistingCleanInRange(selectedRooms, fromDay, toDay) {
-      return cleaningSchedule.filter(c => selectedRooms.includes(c.room) && c.day >= fromDay && c.day <= toDay);
+      const fromDate = _cds(calYear, calMonth, fromDay);
+      const toDate = _cds(calYear, calMonth, toDay);
+      return cleaningSchedule.filter(c => selectedRooms.includes(c.room) && c.date >= fromDate && c.date <= toDate);
     }
 
     // 청소 모달에서 일괄삭제 버튼 표시/숨김 업데이트
@@ -2194,7 +2221,7 @@
       if (pending.length === 0) return;
       if (!confirm(`${pending.length}건을 완료 처리하시겠습니까?`)) return;
       for (const item of pending) {
-        const entry = cleaningSchedule.find(c => c.room === item.room && c.day === item.day);
+        const entry = cleaningSchedule.find(c => c.room === item.room && c.date === item.date);
         if (entry) entry.done = true;
       }
       saveCleaningToStorage();
@@ -2211,7 +2238,7 @@
       if (done.length === 0) return;
       if (!confirm(`${done.length}건을 예정으로 되돌리시겠습니까?`)) return;
       for (const item of done) {
-        const entry = cleaningSchedule.find(c => c.room === item.room && c.day === item.day);
+        const entry = cleaningSchedule.find(c => c.room === item.room && c.date === item.date);
         if (entry) entry.done = false;
       }
       saveCleaningToStorage();
