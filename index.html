@@ -2663,7 +2663,7 @@
       container.innerHTML = cleanGuideData.map((cat, ci) => {
         const itemsHtml = cat.items.map((item, ii) => {
           const levelHtml = item.level ? `<span class="text-sm text-gray-400 ml-1">· ${item.level}</span>` : '';
-          const photosHtml = (item.photos && item.photos.length) ? `<div class="flex gap-2 mt-2 flex-wrap">${item.photos.map(p => `<img src="${p}" class="w-20 h-20 object-cover rounded border cursor-pointer" onclick="event.preventDefault();event.stopPropagation();openGuidePhoto(this.src)" loading="lazy">`).join('')}</div>` : '';
+          const photosHtml = (item.photos && item.photos.length) ? `<div class="flex gap-2 mt-2 flex-wrap">${item.photos.map(p => `<img src="${p}" class="w-40 h-40 object-cover rounded border cursor-pointer" onclick="event.preventDefault();event.stopPropagation();openGuidePhoto(this.src)" loading="lazy">`).join('')}</div>` : '';
           return `<label class="flex items-start gap-2 py-2 px-3 rounded hover:bg-gray-50 cursor-pointer">
             <input type="checkbox" class="mt-1 accent-green-600" onchange="updateGuideProgress(${ci})">
             <div class="flex-1"><span class="text-sm font-bold text-blue-600">${item.area}</span><span class="text-sm font-bold text-gray-900 ml-2">${item.task}</span>${levelHtml}${photosHtml}</div>
