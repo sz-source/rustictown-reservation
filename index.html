@@ -179,6 +179,11 @@
       .drag-tooltip { display: none !important; }
     }
 
+    /* 버퍼 일자 (이전달/다음달) 스타일 */
+    .buffer-day { background: #faf8f4 !important; border-right-color: #e8e0d0 !important; }
+    .buffer-cell { background: #faf8f4 !important; border-right-color: #e8e0d0 !important; }
+    .buffer-cell .bar { opacity: 0.75; }
+
     /* 터치 스크롤 최적화 */
     .overflow-x-auto { -webkit-overflow-scrolling: touch; }
 
@@ -1197,47 +1202,68 @@
       const now = new Date();
       const todayDay = (now.getFullYear() === calYear && now.getMonth() + 1 === calMonth) ? now.getDate() : -1;
 
+      // 버퍼 일수: 이전달/다음달 며칠을 함께 표시 (월 경계 예약 가시성)
+      const BUF = 3;
+      const gridStart = 1 - BUF;        // e.g., -2 (이전달 3일)
+      const gridEnd = nDays + BUF;       // e.g., 34 (다음달 3일)
+      // 확장 오프셋 범위 (예약 필터링용)
+      const extOffStart = toDayOffset(calYear, calMonth, gridStart);
+      const extOffEnd = toDayOffset(calYear, calMonth, gridEnd);
+
       let html = '<thead><tr>';
       html += '<th class="room-header text-left text-sm font-semibold text-gray-700" style="min-width:90px;background:#f3f4f6">숙소</th>';
-      for (let d = 1; d <= nDays; d++) {
-        const dow = (startDow + d - 1) % 7;
+      for (let d = gridStart; d <= gridEnd; d++) {
+        const isBuffer = d < 1 || d > nDays;
+        // 실제 날짜 계산 (이전달/다음달 포함)
+        const realDate = new Date(calYear, calMonth - 1, d);
+        const realDay = realDate.getDate();
+        const realMonth = realDate.getMonth() + 1;
+        const dow = realDate.getDay();
         const isWe = dow === 0 || dow === 6;
-        const hol = isHoliday(calMonth, d);
-        const isToday = d === todayDay;
+        const hol = !isBuffer && isHoliday(calMonth, d);
+        const isToday = !isBuffer && d === todayDay;
         let cls = 'date-header';
         if (isWe || hol) cls += ' weekend';
         if (hol) cls += ' holiday';
         if (isToday) cls += ' today';
+        if (isBuffer) cls += ' buffer-day';
         const isRed = hol || dow === 0;
-        const numStyle = isRed ? ' style="color:#ef4444"' : '';
-        const daySpanCls = isToday ? 'text-blue-500' : (isRed ? 'text-red-400' : 'text-gray-400');
+        const numStyle = isBuffer ? ' style="color:#c4b5a0"' : (isRed ? ' style="color:#ef4444"' : '');
+        const daySpanCls = isBuffer ? 'text-gray-300' : (isToday ? 'text-blue-500' : (isRed ? 'text-red-400' : 'text-gray-400'));
         const holTitle = hol ? ` title="${hol}"` : '';
-        html += `<th class="${cls}"${holTitle}><span${numStyle}>${d}</span><br><span class="${daySpanCls} text-[10px]">${dayNames[dow]}</span></th>`;
+        // 버퍼 날짜: "M/D" 형식 표시 (어느 달인지 알 수 있게)
+        const dayLabel = isBuffer ? `<span style="font-size:9px;color:#b8a88a">${realMonth}/${realDay}</span>` : `<span${numStyle}>${d}</span>`;
+        html += `<th class="${cls}"${holTitle}>${dayLabel}<br><span class="${daySpanCls} text-[10px]">${dayNames[dow]}</span></th>`;
       }
       html += '</tr></thead><tbody>';
 
       rooms.forEach(room => {
         const disabled = isRoomDisabled(room.name);
-        // 해당 월에 걸치는 예약만 필터
-        const roomResRaw = reservations.filter(r => r.room === room.name && r.ci <= monthOffsetEnd && r.co >= monthOffsetStart).sort((a,b) => a.ci - b.ci);
+        // 확장 범위에 걸치는 예약 필터 (버퍼 포함)
+        const roomResRaw = reservations.filter(r => r.room === room.name && r.ci <= extOffEnd && r.co >= extOffStart).sort((a,b) => a.ci - b.ci);
         const roomRes = mergeReservations(roomResRaw);
         html += '<tr>';
         const disabledBadge = disabled ? ' <span class="text-[9px] px-1 py-0.5 rounded bg-red-100 text-red-500">사용불가</span>' : '';
         html += `<td class="room-header" ${disabled?'style="opacity:0.5"':''}><div class="font-medium text-sm">${room.name}${premiumBadge(room.name)}${disabledBadge}</div><div class="text-[10px] text-gray-400">${room.type}</div></td>`;
 
         if (disabled) {
-          for (let d = 1; d <= nDays; d++) html += `<td class="cell" data-room="${room.name}" data-day="${d}" style="background:repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 10px,#e5e7eb 10px,#e5e7eb 11px);opacity:0.5"></td>`;
+          for (let d = gridStart; d <= gridEnd; d++) {
+            const isBuffer = d < 1 || d > nDays;
+            html += `<td class="cell${isBuffer?' buffer-cell':''}" data-room="${room.name}" ${isBuffer?'':'data-day="'+d+'"'} style="background:repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 10px,#e5e7eb 10px,#e5e7eb 11px);opacity:0.5"></td>`;
+          }
         } else {
           // 청소 데이터는 3월 전용 — 다른 달에서는 빈 배열
           const cleanSpans = (calYear === 2026 && calMonth === 3) ? getCleaningSpans(room.name) : [];
-          for (let day = 1; day <= nDays; day++) {
-            const off = monthOffsetStart + day - 1;
+          for (let day = gridStart; day <= gridEnd; day++) {
+            const isBuffer = day < 1 || day > nDays;
+            const off = toDayOffset(calYear, calMonth, day);
             const res = roomRes.find(r => off >= r.ci && off <= r.co);
             let cellContent = '';
 
             if (res) {
-              const visStart = Math.max(res.ci, monthOffsetStart) - monthOffsetStart + 1;
-              const visEnd = Math.min(res.co, monthOffsetEnd) - monthOffsetStart + 1;
+              // visStart/visEnd: 전체 그리드 범위 기준
+              const visStart = Math.max(res.ci, extOffStart) - extOffStart + gridStart;
+              const visEnd = Math.min(res.co, extOffEnd) - extOffStart + gridStart;
               const span = visEnd - visStart + 1;
               const done = isCompleted(res.status);
               const color = done ? '#d1d5db' : pgmColor(res.pgm);
@@ -1247,11 +1273,6 @@
               const nameLabel = isCleanMode ? `${res.count}명` : (guestCount > 1 ? `${res.guest} 외 ${guestCount - 1}명 (${res.count}명)` : (res.count > 1 ? `${res.guest} (${res.count}명)` : res.guest));
               const hasBedding = hasExtraBedding(res);
               const beddingText = hasBedding ? res.extraBedding.trim() : '';
-              // 월 경계 감지: 예약이 이전/다음 달에서 이어지는지
-              const fromPrev = res.ci < monthOffsetStart;  // 이전 달에서 이어짐
-              const toNext = res.co > monthOffsetEnd;      // 다음 달로 이어짐
-              const isBoundary = fromPrev || toNext;
-              // 라벨: 월 경계든 아니든 항상 이름 + 프로그램명 표시
               let label;
               if (isCleanMode) {
                 label = (hasBedding && span >= 3) ? `${res.count}명 · ${beddingText}` : `${res.count}명`;
@@ -1260,35 +1281,31 @@
               }
               const beddingIcon = hasBedding ? '<span style="font-size:11px;vertical-align:middle;flex-shrink:0" title="추가침구">🔴</span>' : '';
               const beddingBorder = hasBedding ? 'border:2px dashed rgba(255,255,255,0.6);' : '';
-              // 월 경계 좁은 바(span<=3): overflow visible + 텍스트에 배경색
-              const isNarrowBoundary = isBoundary && span <= 3;
-              const barOverflow = isNarrowBoundary ? 'overflow:visible;' : 'overflow:hidden;';
-              const spanBg = isNarrowBoundary ? `background:${color};border-radius:4px;padding:0 4px;` : '';
-              // 월 경계 좁은 바에서는 항상 이름+프로그램 표시
-              if (isNarrowBoundary && !isCleanMode) {
-                label = `${nameLabel} · ${pgmLabel(res.pgm)}`;
-              }
 
               if (day === visStart) {
                 const halfCell = span > 1;
-                const barLeft = fromPrev ? 'left:0;' : (halfCell ? 'left:50%;' : 'left:2px;');
-                const barWidth = fromPrev ? (span > 1 ? `calc(${span * 100}% - 2px)` : 'calc(100% - 4px)') : (halfCell ? `calc(${(span - 1) * 100}% + ${(span - 1)}px)` : 'calc(100% - 4px)');
-                cellContent += `<div class="bar" style="position:absolute;top:4px;${barLeft}width:${barWidth};background:${color};${textColor};${beddingBorder}display:flex;align-items:center;justify-content:flex-start;padding-left:3px;gap:2px;z-index:${isNarrowBoundary?5:2};pointer-events:auto;${barOverflow}" onclick="if(!window._dragOccurred)showDetail(this)" data-res='${JSON.stringify(res)}'>${beddingIcon}<span style="${spanBg}white-space:nowrap;${isNarrowBoundary?'':'overflow:hidden;text-overflow:ellipsis;'}">${label}</span></div>`;
+                const barLeft = halfCell ? 'left:50%;' : 'left:2px;';
+                const barWidth = halfCell ? `calc(${(span - 1) * 100}% + ${(span - 1)}px)` : 'calc(100% - 4px)';
+                cellContent += `<div class="bar" style="position:absolute;top:4px;${barLeft}width:${barWidth};background:${color};${textColor};${beddingBorder}display:flex;align-items:center;justify-content:center;gap:2px;z-index:2;pointer-events:auto;overflow:hidden" onclick="if(!window._dragOccurred)showDetail(this)" data-res='${JSON.stringify(res)}'>${beddingIcon}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span></div>`;
               }
             }
 
-            // Cleaning bar
-            const cleanSpan = cleanSpans.find(s => s.startDay === day);
-            if (cleanSpan) {
-              const spanLen = Math.min(cleanSpan.endDay, nDays) - cleanSpan.startDay + 1;
-              const halfCell = spanLen > 1;
-              const barLeft = halfCell ? 'left:50%;' : 'left:2px;';
-              const barWidth = halfCell ? `calc(${(spanLen - 1) * 100}% + ${(spanLen - 1)}px)` : 'calc(100% - 4px)';
-              const cleanLabel = cleanSpan.done ? '완료' : '예정';
-              cellContent += `<div class="clean-bar" data-clean-room="${room.name}" data-clean-day="${cleanSpan.startDay}" onclick="showCleanPopup('${room.name}',${cleanSpan.startDay},event)" style="position:absolute;bottom:2px;${barLeft}width:${barWidth};background:${cleanSpan.done?'#d1fae5':'#fef3c7'};color:${cleanSpan.done?'#065f46':'#92400e'};z-index:3;padding:2px 4px;font-size:12px;border-radius:4px;text-align:center;white-space:nowrap;overflow:hidden;pointer-events:auto;cursor:pointer">${cleanLabel}</div>`;
+            // Cleaning bar (본월 영역만)
+            if (!isBuffer) {
+              const cleanSpan = cleanSpans.find(s => s.startDay === day);
+              if (cleanSpan) {
+                const spanLen = Math.min(cleanSpan.endDay, nDays) - cleanSpan.startDay + 1;
+                const halfCell = spanLen > 1;
+                const barLeft = halfCell ? 'left:50%;' : 'left:2px;';
+                const barWidth = halfCell ? `calc(${(spanLen - 1) * 100}% + ${(spanLen - 1)}px)` : 'calc(100% - 4px)';
+                const cleanLabel = cleanSpan.done ? '완료' : '예정';
+                cellContent += `<div class="clean-bar" data-clean-room="${room.name}" data-clean-day="${cleanSpan.startDay}" onclick="showCleanPopup('${room.name}',${cleanSpan.startDay},event)" style="position:absolute;bottom:2px;${barLeft}width:${barWidth};background:${cleanSpan.done?'#d1fae5':'#fef3c7'};color:${cleanSpan.done?'#065f46':'#92400e'};z-index:3;padding:2px 4px;font-size:12px;border-radius:4px;text-align:center;white-space:nowrap;overflow:hidden;pointer-events:auto;cursor:pointer">${cleanLabel}</div>`;
+              }
             }
 
-            html += `<td class="cell" data-room="${room.name}" data-day="${day}" style="position:relative;overflow:visible;padding:0">${cellContent}</td>`;
+            // 버퍼 셀: 흐린 배경, 클릭/드래그 비활성 (data-day 없음)
+            const bufStyle = isBuffer ? 'background:#f9f6f1;' : '';
+            html += `<td class="cell${isBuffer?' buffer-cell':''}" ${isBuffer?'':'data-room="'+room.name+'" data-day="'+day+'"'} style="position:relative;overflow:visible;padding:0;${bufStyle}">${cellContent}</td>`;
           }
         }
         html += '</tr>';
