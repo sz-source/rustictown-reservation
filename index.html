@@ -528,7 +528,7 @@
       <ul class="text-sm text-amber-900 space-y-1.5">
         <li>• 이전 투숙객의 흔적이 느껴지지 않아야 합니다.</li>
         <li>• '눈에 보이는 깨끗함'뿐 아니라 <strong>냄새, 촉감(맨발), 습기</strong>까지 포함합니다.</li>
-        <li>• 머리카락, 물때, 벌레 사체는 <strong>입실 전 0건</strong> 기준입니다.</li>
+        <li>• 머리카락, 물때, 벌레 사체는 <strong>입실 전 남아있는 것이 없도록 모두 확인 후 제거</strong>합니다.</li>
       </ul>
     </div>
 
@@ -2601,7 +2601,6 @@
         { area: '냉장고', task: '내부 전체 비우기, 닦기', level: '열었을 때 냄새가 나지 않고, 깨끗함' },
         { area: '싱크대', task: '배수구, 수전 등 음식물 및 물때 제거', level: '이전 사용자 흔적 X' },
         { area: '식탁 및 의자', task: '먼지 및 음식물 자국 제거', level: '이전 사용자 흔적 X' },
-        { area: '음식물용 쓰레기 봉투', task: '음식물용 쓰레기 봉투 여분 비치', level: '여분 봉투가 보이도록 수전 옆에 두기' },
       ]},
       { icon: '🛏', title: '침실', borderColor: '#2563eb', items: [
         { area: 'TV', task: '본체 앞, 뒤 먼지 제거', level: '' },
@@ -2610,6 +2609,24 @@
         { area: '매트리스', task: '머리카락, 먼지 제거', level: '' },
         { area: '에어컨', task: '날개, 본체 외부 먼지 제거', level: '' },
       ]},
+      { icon: '🏠', title: '입실 전 세팅 (한옥 숙소)', borderColor: '#059669', items: [
+        { area: '침실 문', task: '숙소 내 침실 문 열어두기', level: '', photos: [] },
+        { area: '침구류 세팅', task: '이불 위쪽 조금 뒤집어서 반듯하게 세팅', level: '', photos: ['images/clean-guide/hanok-bedding.jpg'] },
+        { area: '화장지/봉투/수건', task: '화장지 2개, 검정색 여분 봉투 2장, 수건 2장 비치', level: '기본적으로 나무 선반 쪽 비치 및 행거 아래 비치', photos: ['images/clean-guide/hanok-towel-tissue1.jpg','images/clean-guide/hanok-towel-tissue2.jpg'] },
+        { area: '부엌 싱크대', task: '키친타올 1롤, 수세미 2장, 행주 2장, 주방 세제 리필 + 식기류 정리', level: '', photos: ['images/clean-guide/hanok-kitchen.jpg'] },
+        { area: '화장실 어메니티', task: '비어있을 경우 채우기 (위치 변경 X)', level: '', photos: ['images/clean-guide/hanok-amenity.jpg'] },
+        { area: '보일러 온도', task: '입실 당일 기본 35도 / 산내음·들내음·풀내음 온돌 30도', level: '', photos: ['images/clean-guide/hanok-boiler.jpg'] },
+        { area: '경첩/도어락', task: '입구 왼쪽 문 경첩 및 도어락 잠금 체크 필수!', level: '', photos: ['images/clean-guide/hanok-hinge.jpg'] },
+      ]},
+      { icon: '✋', title: '입실 전 세팅 (하이파이브 숙소)', borderColor: '#059669', items: [
+        { area: '식기류 정리', task: '주방 식기건조대에 쌓여있는 식기류는 아래 서랍에 맞는 위치에 정리', level: '', photos: ['images/clean-guide/hifive-dishes.jpg','images/clean-guide/hifive-pots.jpg','images/clean-guide/hifive-kitchen.jpg'] },
+        { area: '침구류 세팅', task: '이불 위쪽 조금 뒤집어서 반듯하게 세팅', level: '', photos: ['images/clean-guide/hifive-bedding.jpg'] },
+        { area: '화장실 어메니티', task: '비어있을 경우 채우기', level: '', photos: ['images/clean-guide/common-handwash.jpg'] },
+        { area: '화장지/수건', task: '화장지 2롤, 수건 2장 화장실 선반에 비치', level: '', photos: ['images/clean-guide/hifive-towel-tissue.jpg'] },
+        { area: '드라이기', task: '화장실 선반 드라이기 선 정리', level: '', photos: [] },
+        { area: '보일러', task: '객실 및 거실·주방·복도 보일러 온도 확인', level: '', photos: ['images/clean-guide/hifive-boiler-room.jpg','images/clean-guide/hifive-boiler-common.jpg'] },
+        { area: '도어락', task: '세팅 완료 후 도어락 문 잠금 필수!', level: '', photos: ['images/clean-guide/hifive-doorlock.jpg'] },
+      ]},
     ];
 
     function renderCleanGuide() {
@@ -2617,9 +2634,10 @@
       container.innerHTML = cleanGuideData.map((cat, ci) => {
         const itemsHtml = cat.items.map((item, ii) => {
           const levelHtml = item.level ? `<span class="text-sm text-gray-400 ml-1">· ${item.level}</span>` : '';
+          const photosHtml = (item.photos && item.photos.length) ? `<div class="flex gap-2 mt-2 flex-wrap">${item.photos.map(p => `<img src="${p}" class="w-20 h-20 object-cover rounded border cursor-pointer" onclick="event.preventDefault();event.stopPropagation();openGuidePhoto(this.src)" loading="lazy">`).join('')}</div>` : '';
           return `<label class="flex items-start gap-2 py-2 px-3 rounded hover:bg-gray-50 cursor-pointer">
             <input type="checkbox" class="mt-1 accent-green-600" onchange="updateGuideProgress(${ci})">
-            <div class="flex-1"><span class="text-sm font-bold text-blue-600">${item.area}</span><span class="text-sm font-bold text-gray-900 ml-2">${item.task}</span>${levelHtml}</div>
+            <div class="flex-1"><span class="text-sm font-bold text-blue-600">${item.area}</span><span class="text-sm font-bold text-gray-900 ml-2">${item.task}</span>${levelHtml}${photosHtml}</div>
           </label>`;
         }).join('');
         return `<div class="bg-white rounded-lg border overflow-hidden">
@@ -2648,6 +2666,14 @@
       const checks = container.querySelectorAll('input[type="checkbox"]');
       const done = [...checks].filter(c => c.checked).length;
       container.querySelector('.guide-progress').textContent = `${done}/${checks.length}`;
+    }
+
+    function openGuidePhoto(src) {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:16px;';
+      overlay.innerHTML = `<img src="${src}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;">`;
+      overlay.onclick = () => overlay.remove();
+      document.body.appendChild(overlay);
     }
 
     // ========== API: 예약 생성 (개별) ==========
