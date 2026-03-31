@@ -751,6 +751,7 @@
       currentRole = null;
       loggedInAs = null;
       sessionStorage.removeItem('loggedInRole');
+      sessionStorage.removeItem('currentViewRole');
       document.getElementById('login-modal').classList.remove('hidden');
       document.getElementById('login-id').value = '';
       document.getElementById('login-pw').value = '';
@@ -764,6 +765,7 @@
       } else {
         currentRole = 'admin';
       }
+      sessionStorage.setItem('currentViewRole', currentRole);
       applyRole();
     }
 
@@ -2867,8 +2869,10 @@
     // Restore login from sessionStorage
     const savedRole = sessionStorage.getItem('loggedInRole');
     if (savedRole && (savedRole === 'admin' || savedRole === 'cleaning')) {
-      currentRole = savedRole;
       loggedInAs = savedRole;
+      // 관리자인 경우 마지막 뷰 모드(관리자/청소팀) 복원
+      const savedView = sessionStorage.getItem('currentViewRole');
+      currentRole = (savedRole === 'admin' && savedView === 'cleaning') ? 'cleaning' : savedRole;
       document.getElementById('login-modal').classList.add('hidden');
       applyRole();
     }
