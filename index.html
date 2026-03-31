@@ -59,27 +59,24 @@
       }
       .nav-tabs-container { width: 100%; order: 10; }
 
-      /* 상단 네비 — 2행 구조 */
+      /* 상단 네비 — 한 줄 컴팩트 */
       nav .mx-auto {
-        flex-wrap: wrap !important;
-        padding: 0 12px;
+        padding: 0 8px;
+        gap: 0 !important;
       }
-      nav .mx-auto > div:first-child { flex: 1; min-width: 0; }
+      nav .mx-auto > div:first-child { flex: 1; min-width: 0; gap: 0 !important; }
       /* 로고: 2줄 허용, 햄버거 옆 배치 */
-      nav .text-base { font-size: 14px; padding: 8px 0; padding-right: 6px; white-space: normal !important; line-height: 1.3; }
-      #hamburger-btn { padding: 6px; flex-shrink: 0; }
-      #header-login-btn { font-size: 13px; padding: 6px 14px; }
-      /* 로그인 상태: 유저정보 2행 — 구분선 없음 */
+      nav .text-base { font-size: 13px; padding: 6px 0; padding-right: 4px; white-space: normal !important; line-height: 1.25; }
+      #hamburger-btn { padding: 4px; flex-shrink: 0; }
+      #header-login-btn { font-size: 12px; padding: 5px 10px; }
+      /* 로그인 상태: 한 줄 유지, 구분선 없음 */
       #header-user-info {
-        width: 100%;
-        order: 10;
-        justify-content: flex-end !important;
-        gap: 6px !important;
-        padding-bottom: 8px;
+        gap: 4px !important;
       }
-      #header-user-info button { font-size: 12px; padding: 4px 10px; white-space: nowrap; }
-      #header-role-label { font-size: 12px; }
-      #btn-switch-view { font-size: 12px !important; padding: 4px 8px !important; white-space: nowrap; }
+      #header-user-info button { font-size: 11px; padding: 3px 6px; white-space: nowrap; border: none !important; color: #6b7280; }
+      #header-user-info button:last-child { color: #9ca3af; }
+      #header-role-label { font-size: 11px; }
+      #btn-switch-view { font-size: 11px !important; padding: 3px 6px !important; white-space: nowrap; border: none !important; }
 
       /* 캘린더 페이지 패딩 축소 */
       #page-calendar > .max-w-full { padding: 10px 10px 16px; }
@@ -1250,15 +1247,31 @@
               const nameLabel = isCleanMode ? `${res.count}명` : (guestCount > 1 ? `${res.guest} 외 ${guestCount - 1}명 (${res.count}명)` : (res.count > 1 ? `${res.guest} (${res.count}명)` : res.guest));
               const hasBedding = hasExtraBedding(res);
               const beddingText = hasBedding ? res.extraBedding.trim() : '';
-              const label = isCleanMode ? (hasBedding && span >= 3 ? `${res.count}명 · ${beddingText}` : `${res.count}명`) : (span >= 3 ? `${nameLabel} · ${pgmLabel(res.pgm)}` : nameLabel);
+              // 월 경계 감지: 예약이 이전/다음 달에서 이어지는지
+              const fromPrev = res.ci < monthOffsetStart;  // 이전 달에서 이어짐
+              const toNext = res.co > monthOffsetEnd;      // 다음 달로 이어짐
+              const arrowLeft = fromPrev ? '◀ ' : '';
+              const arrowRight = toNext ? ' ▶' : '';
+              // 월 경계 바: 짧은 span에서 간결한 라벨 사용
+              let label;
+              if (isCleanMode) {
+                label = (hasBedding && span >= 3) ? `${res.count}명 · ${beddingText}` : `${res.count}명`;
+              } else if (fromPrev || toNext) {
+                // 월 경계: 짧은 바에도 이름 + 화살표 표시
+                label = span >= 4 ? `${arrowLeft}${nameLabel} · ${pgmLabel(res.pgm)}${arrowRight}` : `${arrowLeft}${nameLabel}${arrowRight}`;
+              } else {
+                label = span >= 3 ? `${nameLabel} · ${pgmLabel(res.pgm)}` : nameLabel;
+              }
               const beddingIcon = hasBedding ? '<span style="font-size:11px;vertical-align:middle;flex-shrink:0" title="추가침구">🔴</span>' : '';
               const beddingBorder = hasBedding ? 'border:2px dashed rgba(255,255,255,0.6);' : '';
+              // 월 경계 바: left edge에서 시작하도록 (이전달에서 이어질 때)
+              const barAlign = fromPrev ? 'justify-content:flex-start;padding-left:3px;' : 'justify-content:center;';
 
               if (day === visStart) {
                 const halfCell = span > 1;
-                const barLeft = halfCell ? 'left:50%;' : 'left:2px;';
-                const barWidth = halfCell ? `calc(${(span - 1) * 100}% + ${(span - 1)}px)` : 'calc(100% - 4px)';
-                cellContent += `<div class="bar" style="position:absolute;top:4px;${barLeft}width:${barWidth};background:${color};${textColor};${beddingBorder}display:flex;align-items:center;justify-content:center;gap:2px;z-index:2;pointer-events:auto;overflow:hidden" onclick="if(!window._dragOccurred)showDetail(this)" data-res='${JSON.stringify(res)}'>${beddingIcon}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span></div>`;
+                const barLeft = fromPrev ? 'left:0;' : (halfCell ? 'left:50%;' : 'left:2px;');
+                const barWidth = fromPrev ? (span > 1 ? `calc(${span * 100}% - 2px)` : 'calc(100% - 4px)') : (halfCell ? `calc(${(span - 1) * 100}% + ${(span - 1)}px)` : 'calc(100% - 4px)');
+                cellContent += `<div class="bar" style="position:absolute;top:4px;${barLeft}width:${barWidth};background:${color};${textColor};${beddingBorder}display:flex;align-items:center;${barAlign}gap:2px;z-index:2;pointer-events:auto;overflow:hidden" onclick="if(!window._dragOccurred)showDetail(this)" data-res='${JSON.stringify(res)}'>${beddingIcon}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span></div>`;
               }
             }
 
@@ -1340,13 +1353,25 @@
                 const beddingText = hasBedding ? res.extraBedding.trim() : '';
                 const guestCount = res.guests ? res.guests.length : 1;
                 const nameLabel = guestCount > 1 ? `${res.guest} 외 ${guestCount - 1}명 (${res.count}명)` : (res.count > 1 ? `${res.guest} (${res.count}명)` : res.guest);
-                const label = isCleanMode ? (hasBedding ? `${res.count}명 · ${beddingText}` : `${res.count}명`) : `${nameLabel} · ${pgmLabel(res.pgm)}`;
+                // 주간 뷰 경계 감지
+                const fromPrevW = res.ci < wOffStart;
+                const toNextW = res.co > wOffEnd;
+                const arwL = fromPrevW ? '◀ ' : '';
+                const arwR = toNextW ? ' ▶' : '';
+                let label;
+                if (isCleanMode) {
+                  label = hasBedding ? `${res.count}명 · ${beddingText}` : `${res.count}명`;
+                } else if (fromPrevW || toNextW) {
+                  label = `${arwL}${nameLabel} · ${pgmLabel(res.pgm)}${arwR}`;
+                } else {
+                  label = `${nameLabel} · ${pgmLabel(res.pgm)}`;
+                }
                 const beddingIcon = hasBedding ? '<span style="font-size:12px;vertical-align:middle;flex-shrink:0" title="추가침구">🔴</span>' : '';
                 const beddingBorder = hasBedding ? 'border:2px dashed rgba(255,255,255,0.6);' : '';
                 const halfCell = span > 1;
-                const barLeft = halfCell ? 'left:50%;' : 'left:2px;';
-                const barWidth = halfCell ? `calc(${(span - 1) * 100}% + ${(span - 1)}px)` : 'calc(100% - 4px)';
-                const alignStyle = isCleanMode ? 'justify-content:center;' : '';
+                const barLeft = fromPrevW ? 'left:0;' : (halfCell ? 'left:50%;' : 'left:2px;');
+                const barWidth = fromPrevW ? (span > 1 ? `calc(${span * 100}% - 2px)` : 'calc(100% - 4px)') : (halfCell ? `calc(${(span - 1) * 100}% + ${(span - 1)}px)` : 'calc(100% - 4px)');
+                const alignStyle = isCleanMode ? 'justify-content:center;' : (fromPrevW ? 'justify-content:flex-start;' : '');
                 cellContent += `<div class="bar py-1.5 px-2" style="position:absolute;top:4px;${barLeft}width:${barWidth};background:${color};${textColor};${beddingBorder}display:flex;align-items:center;gap:3px;${alignStyle}z-index:2;pointer-events:auto;overflow:hidden" onclick="showDetail(this)" data-res='${JSON.stringify(res)}'>${beddingIcon}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span></div>`;
               }
             }
