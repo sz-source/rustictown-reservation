@@ -1132,8 +1132,8 @@
     const dayNames = ['일','월','화','수','목','금','토'];
 
     // ── 캘린더 상태 ──
-    let calYear = 2026;
-    let calMonth = 3;   // 현재 표시 월 (1~12)
+    let calYear = new Date().getFullYear();
+    let calMonth = new Date().getMonth() + 1;   // 현재 표시 월 (1~12)
     let calWeekStart = 8; // 주간 뷰 시작일 (day-of-month)
 
     // 해당 월의 일수
