@@ -2890,6 +2890,7 @@
 
     // 폴백 데이터로 초기 렌더링 후, API 데이터 비동기 로드
     reservations = fallbackReservations;
+    updateCalendarNav();
     renderMonthly();
     renderWeekly();
     renderReservationsList();
