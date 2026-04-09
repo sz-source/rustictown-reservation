@@ -1834,7 +1834,9 @@
             if (roomWrapper) roomWrapper.classList.add('hidden');
           } else {
             draggedCleanRooms = [];
-            document.getElementById('clean-room-select').value = selectedRooms[0];
+            const roomName = selectedRooms[0];
+            const roomOption = roomName + (isPremium(roomName) ? ' ★' : '');
+            document.getElementById('clean-room-select').value = roomOption;
             if (infoArea) infoArea.innerHTML = '';
             if (roomWrapper) roomWrapper.classList.remove('hidden');
           }
