@@ -1304,7 +1304,8 @@
           for (let day = gridStart; day <= gridEnd; day++) {
             const isBuffer = day < 1 || day > nDays;
             const off = toDayOffset(calYear, calMonth, day);
-            const res = roomRes.find(r => off >= r.ci && off <= r.co);
+            // 퇴실/입실 겹침 시 입실(ci) 예약 우선
+            const res = roomRes.find(r => r.ci === off && off <= r.co) || roomRes.find(r => off >= r.ci && off <= r.co);
             let cellContent = '';
 
             if (res) {
@@ -1402,7 +1403,8 @@
           const cleanSpans = getCleaningSpans(room.name);
           for (let day = wStart; day <= wEnd; day++) {
             const off = toDayOffset(calYear, calMonth, day);
-            const res = roomRes.find(r => off >= r.ci && off <= r.co);
+            // 퇴실/입실 겹침 시 입실(ci) 예약 우선
+            const res = roomRes.find(r => r.ci === off && off <= r.co) || roomRes.find(r => off >= r.ci && off <= r.co);
             let cellContent = '';
 
             if (res) {
