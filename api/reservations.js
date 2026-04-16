@@ -1,7 +1,7 @@
 // Vercel Serverless Function: GET /api/reservations
 // 먼데이 보드에서 예약 데이터를 조회하여 프론트엔드 형식으로 변환
 
-const BOARD_ID = 18401306495;
+const BOARD_IDS = [18401306495, 18408385383]; // 예약관리 + 디어먼데이 예약관리
 
 // GraphQL 인젝션 방어: 커서 문자열 검증 (영숫자+기본 특수문자만 허용)
 function sanitizeCursor(cursor) {
@@ -100,7 +100,7 @@ function transformItem(item) {
     co,
     pgm: normalizePgm(cols['text_mm0wsyt1']),
     count: 1,
-    status: normalizeStatus(cols['color_mkzk2mps']),
+    status: normalizeStatus(cols['color_mkzk2mps'] || cols['color_mm2c6f9f']),
     phone: normalizePhone(cols['phone_mkzkr93j']),
     gender: cols['text_mm0rzwj5'] || '',
     org: cols['text_mkzkgbcs'] || '',
@@ -133,59 +133,67 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1차 조회 (최대 500건)
-    const firstQuery = `query {
-      boards(ids: [${BOARD_ID}]) {
-        items_page(limit: 500) {
-          cursor
-          items {
-            id
-            name
-            group { id title }
-            column_values {
+    // 보드별 전체 아이템 조회 (페이지네이션 포함)
+    async function fetchAllItemsFromBoard(boardId) {
+      const firstQuery = `query {
+        boards(ids: [${boardId}]) {
+          items_page(limit: 500) {
+            cursor
+            items {
               id
-              text
-            }
-          }
-        }
-      }
-    }`;
-
-    const data = await queryMonday(firstQuery, token);
-
-    if (data.errors) {
-      console.error('Monday API errors:', data.errors);
-      return res.status(500).json({ error: 'Monday API query failed', details: data.errors });
-    }
-
-    const itemsPage = data.data?.boards?.[0]?.items_page;
-    const items = [...(itemsPage?.items || [])];
-    let cursor = itemsPage?.cursor;
-
-    // 커서가 있으면 다음 페이지 반복 조회 (500건 초과 시)
-    while (cursor) {
-      const safeCursor = sanitizeCursor(cursor);
-      if (!safeCursor) break; // 비정상 커서는 중단
-      const nextQuery = `query {
-        next_items_page(limit: 500, cursor: "${safeCursor}") {
-          cursor
-          items {
-            id
-            name
-            group { id title }
-            column_values {
-              id
-              text
+              name
+              group { id title }
+              column_values {
+                id
+                text
+              }
             }
           }
         }
       }`;
-      const nextData = await queryMonday(nextQuery, token);
-      if (nextData.errors) break;
-      const nextPage = nextData.data?.next_items_page;
-      if (nextPage?.items) items.push(...nextPage.items);
-      cursor = nextPage?.cursor || null;
+
+      const data = await queryMonday(firstQuery, token);
+      if (data.errors) {
+        console.error(`Monday API errors (board ${boardId}):`, data.errors);
+        return [];
+      }
+
+      const itemsPage = data.data?.boards?.[0]?.items_page;
+      const items = [...(itemsPage?.items || [])];
+      let cursor = itemsPage?.cursor;
+
+      while (cursor) {
+        const safeCursor = sanitizeCursor(cursor);
+        if (!safeCursor) break;
+        const nextQuery = `query {
+          next_items_page(limit: 500, cursor: "${safeCursor}") {
+            cursor
+            items {
+              id
+              name
+              group { id title }
+              column_values {
+                id
+                text
+              }
+            }
+          }
+        }`;
+        const nextData = await queryMonday(nextQuery, token);
+        if (nextData.errors) break;
+        const nextPage = nextData.data?.next_items_page;
+        if (nextPage?.items) items.push(...nextPage.items);
+        cursor = nextPage?.cursor || null;
+      }
+
+      return items;
     }
+
+    // 두 보드 병렬 조회
+    const boardResults = await Promise.all(
+      BOARD_IDS.map(id => fetchAllItemsFromBoard(id))
+    );
+    const items = boardResults.flat();
 
     // 변환 + null 필터링 + 환불/취소 제외
     const reservations = items
