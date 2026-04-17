@@ -94,6 +94,7 @@ function transformItem(item) {
 
   return {
     id: item.id,
+    boardId: item._boardId || BOARD_IDS[0],
     guest: item.name || '',
     room: cols['text_mkzkdbf8'] || '',
     ci,
@@ -189,9 +190,12 @@ export default async function handler(req, res) {
       return items;
     }
 
-    // 두 보드 병렬 조회
+    // 두 보드 병렬 조회 (각 아이템에 boardId 태그)
     const boardResults = await Promise.all(
-      BOARD_IDS.map(id => fetchAllItemsFromBoard(id))
+      BOARD_IDS.map(async (id) => {
+        const items = await fetchAllItemsFromBoard(id);
+        return items.map(item => ({ ...item, _boardId: id }));
+      })
     );
     const items = boardResults.flat();
 

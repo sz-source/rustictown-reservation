@@ -1,7 +1,12 @@
 // Vercel Serverless Function: PUT /api/reservations-update
 // 기존 먼데이 아이템의 컬럼값 수정 (상태 변경, 숙소 재배정 등)
 
-const BOARD_ID = 18401306495;
+const DEFAULT_BOARD_ID = 18401306495;
+// 보드별 상태 컬럼 ID 매핑
+const STATUS_COLUMN = {
+  18401306495: 'color_mkzk2mps',
+  18408385383: 'color_mm2c6f9f',
+};
 
 // GraphQL 인젝션 방어: 숫자 검증
 function sanitizeInt(val) {
@@ -46,6 +51,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'itemId is required' });
     }
 
+    const boardId = body.boardId ? sanitizeInt(body.boardId) : DEFAULT_BOARD_ID;
+    const statusColId = STATUS_COLUMN[boardId] || STATUS_COLUMN[DEFAULT_BOARD_ID];
     const columnValues = {};
 
     // 상태 변경
@@ -60,7 +67,7 @@ export default async function handler(req, res) {
         '퇴실완료': '퇴실 완료',
         '환불/취소': '환불/취소'
       };
-      columnValues['color_mkzk2mps'] = { label: statusMap[body.status] || body.status };
+      columnValues[statusColId] = { label: statusMap[body.status] || body.status };
     }
 
     // 숙소 재배정
@@ -97,7 +104,7 @@ export default async function handler(req, res) {
 
     const query = `mutation {
       change_multiple_column_values(
-        board_id: ${BOARD_ID},
+        board_id: ${boardId},
         item_id: ${safeItemId},
         column_values: ${columnValuesStr}
       ) {

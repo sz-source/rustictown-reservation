@@ -450,7 +450,7 @@
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-2">
         <button onclick="changeDashYear(-1)" class="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500">&lt;</button>
-        <span id="dash-year" class="font-semibold text-lg min-w-[4rem] text-center">2026</span>
+        <span id="dash-year" class="font-semibold text-lg min-w-[4rem] text-center"></span>
         <button onclick="changeDashYear(1)" class="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500">&gt;</button>
       </div>
       <div class="flex bg-gray-100 rounded-lg p-0.5">
@@ -621,8 +621,8 @@
         </div>
         <div><label class="block text-sm text-gray-600 mb-1">구성</label><select id="form-category" class="border rounded w-full px-3 py-2 text-sm bg-white"><option>B2C 포레스트캠프</option><option>B2B 러케이션</option><option>기타</option></select></div>
         <div class="grid grid-cols-2 gap-3">
-          <div><label class="block text-sm text-gray-600 mb-1">입실일 *</label><input id="form-checkin" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-16"></div>
-          <div><label class="block text-sm text-gray-600 mb-1">퇴실일 *</label><input id="form-checkout" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-19"></div>
+          <div><label class="block text-sm text-gray-600 mb-1">입실일 *</label><input id="form-checkin" type="date" class="border rounded w-full px-3 py-2 text-sm"></div>
+          <div><label class="block text-sm text-gray-600 mb-1">퇴실일 *</label><input id="form-checkout" type="date" class="border rounded w-full px-3 py-2 text-sm"></div>
         </div>
         <div class="bg-gray-50 rounded-lg p-3">
           <div class="text-sm text-gray-600 mb-2">추가 침구</div>
@@ -672,8 +672,8 @@
         <div><label class="block text-sm text-gray-600 mb-1">프로그램명 *</label><input id="pgm-name" type="text" class="border rounded w-full px-3 py-2 text-sm" placeholder="예: 🖋️ 다시 앉는 문장의 방"></div>
         <div><label class="block text-sm text-gray-600 mb-1">약칭 *</label><input id="pgm-short" type="text" class="border rounded w-full px-3 py-2 text-sm" placeholder="예: 문장의 방 (캘린더 바에 표시)"></div>
         <div class="grid grid-cols-2 gap-3">
-          <div><label class="block text-sm text-gray-600 mb-1">시작일</label><input id="pgm-start" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-16"></div>
-          <div><label class="block text-sm text-gray-600 mb-1">종료일</label><input id="pgm-end" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-19"></div>
+          <div><label class="block text-sm text-gray-600 mb-1">시작일</label><input id="pgm-start" type="date" class="border rounded w-full px-3 py-2 text-sm"></div>
+          <div><label class="block text-sm text-gray-600 mb-1">종료일</label><input id="pgm-end" type="date" class="border rounded w-full px-3 py-2 text-sm"></div>
         </div>
         <div><label class="block text-sm text-gray-600 mb-1">색상</label>
           <div class="flex gap-2 mt-1" id="pgm-color-picker">
@@ -1166,7 +1166,7 @@
     // 해당 월 1일의 요일 (0=일 ~ 6=토)
     function monthStartDow(y, m) { return new Date(y, m - 1, 1).getDay(); }
     // 특정 월/일 → 요일
-    function getDowFor(y, m, d) { return (monthStartDow(y, m) + d - 1) % 7; }
+    function getDowFor(y, m, d) { return ((monthStartDow(y, m) + d - 1) % 7 + 7) % 7; }
     // 기존 호환: 현재 표시 월의 요일
     function getDow(day) { return getDowFor(calYear, calMonth, day); }
     function isWeekend(day) { const d = getDow(day); return d === 0 || d === 6; }
@@ -1680,7 +1680,8 @@
       const btn = document.getElementById('detail-save-btn');
       btn.disabled = true;
       btn.innerHTML = '<span class="loading-spinner"></span> 저장 중...';
-      const ok = await updateReservation(itemId, updates);
+      const boardId = curGuest.boardId || _detailRes.boardId;
+      const ok = await updateReservation(itemId, { ...updates, boardId });
       if (ok) closeModal('detail-modal');
       else { btn.disabled = false; btn.textContent = '💾 저장'; }
     }
@@ -2569,9 +2570,7 @@
         calMonth--;
         if (calMonth < 1) { calMonth = 12; calYear--; }
         const prevDays = numDaysIn(calYear, calMonth);
-        calWeekStart = Math.max(1, prevDays - 6 + (calWeekStart + 6)); // 이전 달 마지막 주
-        // 간단히: 이전 달 마지막 주 시작
-        calWeekStart = Math.max(1, prevDays - 6);
+        calWeekStart = Math.max(1, prevDays + calWeekStart);
         // 월 변경 시 다중 선택 초기화
         multiSelections = [];
         updateMultiSelectBadge();
@@ -2603,7 +2602,9 @@
 
       const nDays = numDaysIn(calYear, calMonth);
       const wEnd = Math.min(calWeekStart + 6, nDays);
-      document.getElementById('week-title').textContent = `${calMonth}/${calWeekStart} ~ ${calMonth}/${wEnd}`;
+      const wEndMonth = wEnd <= nDays ? calMonth : (calMonth === 12 ? 1 : calMonth + 1);
+      const wEndDay = wEnd <= nDays ? wEnd : wEnd - nDays;
+      document.getElementById('week-title').textContent = `${calMonth}/${calWeekStart} ~ ${wEndMonth}/${wEndDay}`;
     }
 
     function switchView(view, btn) {
@@ -2836,12 +2837,14 @@
         }
       }
 
-      alert(`✅ ${successCount}/${guests.length}명 일괄 등록 완료`);
-      closeModal('form-modal');
-      await fetchReservations();
-
-      btn.disabled = false;
-      btn.textContent = '일괄 저장';
+      try {
+        alert(`✅ ${successCount}/${guests.length}명 일괄 등록 완료`);
+        closeModal('form-modal');
+        await fetchReservations();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '일괄 저장';
+      }
     }
 
     // ========== API: 예약 수정 (상태 변경 등) ==========
@@ -2937,7 +2940,7 @@
     document.getElementById('room-count').textContent = `총 ${rooms.length}실`;
 
     // ── 대시보드 통계 뷰 ──
-    let dashYear = 2026;
+    let dashYear = new Date().getFullYear();
     let dashView = 'monthly';
     const dashMonthlyData = {};
     // 실제 예약 데이터에서 월별 통계 계산
@@ -2971,7 +2974,7 @@
     }
     function changeDashYear(d){
       dashYear += d;
-      if(dashYear < 2026) dashYear = 2026;
+      if(dashYear < 2025) dashYear = 2025;
       document.getElementById('dash-year').textContent = dashYear;
       renderDashView();
     }
@@ -3068,6 +3071,7 @@
       document.getElementById('dash-annual-gender-chart').innerHTML = makeDonut(tt,tf,tm,dashYear+'년');
       document.getElementById('dash-annual-gender-legend').innerHTML = makeLegend(tf,tm,tt);
     }
+    document.getElementById('dash-year').textContent = dashYear;
     renderDashView();
 
     // ── 일괄 등록 게스트 목록 ──
