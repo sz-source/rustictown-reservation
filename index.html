@@ -2065,9 +2065,11 @@
         grid.innerHTML = rooms.filter(r => !isRoomDisabled(r.name)).map(r => {
           const star = isPremium(r.name) ? ' ★' : '';
           const safeName = r.name.replace(/"/g, '&quot;');
-          return `<label class="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-emerald-100 cursor-pointer text-sm bg-white border border-gray-200">
+          // 표시용 짧은 이름: "하이파이브 201호" → "HI-201"
+          const shortName = r.name.replace(/^하이파이브\s*/, 'HI-').replace(/호$/, '');
+          return `<label class="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-emerald-100 cursor-pointer text-sm bg-white border border-gray-200" title="${safeName}">
             <input type="checkbox" class="clean-room-check accent-emerald-500" value="${safeName}" onchange="updateCleanRoomCount()">
-            <span class="truncate">${r.name}${star}</span>
+            <span class="truncate">${shortName}${star}</span>
           </label>`;
         }).join('');
       }
