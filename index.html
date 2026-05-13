@@ -365,6 +365,7 @@
           <button id="btn-multi-select" class="hidden px-3 py-1.5 border rounded text-sm hover:bg-blue-50 transition-colors" onclick="toggleMultiSelectMode(this)">⊞ 다중선택</button>
           <span id="multi-select-badge" class="hidden text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full whitespace-nowrap"></span>
           <button id="btn-new-reservation" class="bg-blue-500 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-600" onclick="openNewReservationForm()">+ 새 예약</button>
+          <button id="btn-admin-new-cleaning" class="hidden bg-emerald-500 text-white px-4 py-1.5 rounded text-sm hover:bg-emerald-600" onclick="openCleaningModal()">+ 청소</button>
         </div>
       </div>
 
@@ -821,6 +822,10 @@
       // "청소 일정 등록" 버튼: 관리자는 숨김 (캘린더 드래그 또는 "새 예약" 버튼 사용)
       const addCleanBtn = document.getElementById('btn-add-cleaning');
       if (addCleanBtn) addCleanBtn.classList.toggle('hidden', isAdmin);
+
+      // 관리자 전용 "+ 청소 등록" 버튼: 관리자 뷰에서만 표시
+      const adminCleanBtn = document.getElementById('btn-admin-new-cleaning');
+      if (adminCleanBtn) adminCleanBtn.classList.toggle('hidden', isClean);
 
 
       // Re-render calendars
@@ -2128,6 +2133,12 @@
       if (roomWrapper) roomWrapper.classList.remove('hidden');
       document.getElementById('clean-person').value = '';
       document.getElementById('clean-memo').value = '';
+      // 날짜는 빈 칸으로 (사용자가 직접 선택)
+      document.getElementById('clean-date-start').value = '';
+      document.getElementById('clean-date-end').value = '';
+      // 숙소 선택 초기화
+      const roomSel = document.getElementById('clean-room-select');
+      if (roomSel) roomSel.selectedIndex = 0;
       // 일괄삭제 버튼 숨김 (버튼으로 열 때는 등록 전용)
       updateCleanModalButtons([]);
       openModal('cleaning-modal');
