@@ -315,7 +315,17 @@
       </div>
       <div class="p-5 space-y-4">
         <div id="clean-drag-info"></div>
-        <div id="clean-room-wrapper"><label class="block text-sm text-gray-600 mb-1">숙소 *</label><select class="border rounded w-full px-3 py-2 text-sm bg-white" id="clean-room-select"></select></div>
+        <div id="clean-room-wrapper">
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-sm text-gray-600">숙소 * <span id="clean-room-count" class="text-xs text-emerald-600 ml-1"></span></label>
+            <div class="flex gap-2 text-xs">
+              <button type="button" onclick="cleanRoomSelectAll(true)" class="text-blue-500 hover:text-blue-700">전체 선택</button>
+              <span class="text-gray-300">|</span>
+              <button type="button" onclick="cleanRoomSelectAll(false)" class="text-gray-500 hover:text-gray-700">해제</button>
+            </div>
+          </div>
+          <div id="clean-room-grid" class="grid grid-cols-3 gap-1.5 border rounded p-2 max-h-48 overflow-y-auto bg-gray-50"></div>
+        </div>
         <div class="grid grid-cols-2 gap-3">
           <div><label class="block text-sm text-gray-600 mb-1">시작일 *</label><input id="clean-date-start" type="date" class="border rounded w-full px-3 py-2 text-sm"></div>
           <div><label class="block text-sm text-gray-600 mb-1">종료일 *</label><input id="clean-date-end" type="date" class="border rounded w-full px-3 py-2 text-sm"></div>
@@ -1869,7 +1879,10 @@
             draggedCleanRooms = [];
             const roomName = selectedRooms[0];
             const roomOption = roomName + (isPremium(roomName) ? ' ★' : '');
-            document.getElementById('clean-room-select').value = roomOption;
+            // 체크박스 그리드에서 해당 숙소만 체크
+            cleanRoomSelectAll(false);
+            const targetCb = document.querySelector(`.clean-room-check[value="${roomOption.replace(/"/g, '&quot;')}"]`);
+            if (targetCb) { targetCb.checked = true; updateCleanRoomCount(); }
             if (infoArea) infoArea.innerHTML = '';
             if (roomWrapper) roomWrapper.classList.remove('hidden');
           }
@@ -2046,9 +2059,31 @@
 
       // 캘린더 뱃지 팝업으로 대체됨 (별도 테이블 없음)
 
-      // Also populate cleaning modal room select
-      const sel = document.getElementById('clean-room-select');
-      if (sel) sel.innerHTML = '<option>선택</option>' + rooms.filter(r => !isRoomDisabled(r.name)).map(r => `<option>${r.name}${isPremium(r.name) ? ' ★' : ''}</option>`).join('');
+      // Also populate cleaning modal room grid (체크박스 다중 선택)
+      const grid = document.getElementById('clean-room-grid');
+      if (grid) {
+        grid.innerHTML = rooms.filter(r => !isRoomDisabled(r.name)).map(r => {
+          const star = isPremium(r.name) ? ' ★' : '';
+          const safeName = r.name.replace(/"/g, '&quot;');
+          return `<label class="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-emerald-100 cursor-pointer text-sm bg-white border border-gray-200">
+            <input type="checkbox" class="clean-room-check accent-emerald-500" value="${safeName}" onchange="updateCleanRoomCount()">
+            <span class="truncate">${r.name}${star}</span>
+          </label>`;
+        }).join('');
+      }
+    }
+
+    // 청소 모달 - 체크박스 전체 선택/해제
+    function cleanRoomSelectAll(check) {
+      document.querySelectorAll('.clean-room-check').forEach(cb => cb.checked = check);
+      updateCleanRoomCount();
+    }
+
+    // 청소 모달 - 선택된 숙소 개수 표시
+    function updateCleanRoomCount() {
+      const count = document.querySelectorAll('.clean-room-check:checked').length;
+      const label = document.getElementById('clean-room-count');
+      if (label) label.textContent = count > 0 ? `(${count}실 선택)` : '';
     }
 
     // ========== 청소 뱃지 팝업 ==========
@@ -2136,21 +2171,22 @@
       // 날짜는 빈 칸으로 (사용자가 직접 선택)
       document.getElementById('clean-date-start').value = '';
       document.getElementById('clean-date-end').value = '';
-      // 숙소 선택 초기화
-      const roomSel = document.getElementById('clean-room-select');
-      if (roomSel) roomSel.selectedIndex = 0;
+      // 숙소 체크박스 초기화
+      cleanRoomSelectAll(false);
       // 일괄삭제 버튼 숨김 (버튼으로 열 때는 등록 전용)
       updateCleanModalButtons([]);
       openModal('cleaning-modal');
     }
 
     function registerCleaning() {
-      // 대상 숙소 결정: 드래그 다중선택 or 단일 선택
+      // 대상 숙소 결정: 드래그 다중선택 or 체크박스 다중선택
+      const checkedRooms = Array.from(document.querySelectorAll('.clean-room-check:checked'))
+        .map(cb => cb.value.replace(' ★', ''));
       const targetRooms = draggedCleanRooms.length > 0
         ? draggedCleanRooms
-        : [document.getElementById('clean-room-select').value.replace(' ★', '')];
+        : checkedRooms;
 
-      if (targetRooms.length === 0 || targetRooms[0] === '선택' || !targetRooms[0]) {
+      if (targetRooms.length === 0) {
         alert('숙소를 선택해주세요.'); return;
       }
 
