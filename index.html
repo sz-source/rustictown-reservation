@@ -914,7 +914,12 @@
     function loadPgmFromStorage() {
       try {
         const saved = localStorage.getItem('pgmColors');
-        if (saved) { const parsed = JSON.parse(saved); Object.keys(pgmColors).forEach(k => delete pgmColors[k]); Object.assign(pgmColors, parsed); }
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          // Merge 방식: 기본값(코드) 유지 + localStorage 변경사항 덮어쓰기
+          // → 코드에 새로 추가된 프로그램도 자동 표시됨
+          Object.assign(pgmColors, parsed);
+        }
       } catch(e) {}
     }
     loadPgmFromStorage();
