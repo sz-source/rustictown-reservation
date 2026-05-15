@@ -499,13 +499,7 @@
 
     <div class="bg-white rounded-lg border p-5">
       <h2 class="font-semibold mb-4" id="dash-program-title">📅 프로그램별 현황</h2>
-      <div class="space-y-3 text-sm">
-        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded"><span class="w-56">🐿️ 앗! 도시의 다람쥐가 나타났다!</span><span class="text-gray-500">3/3 ~ 3/7</span><span class="ml-auto font-medium">21명</span></div>
-        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded"><span class="w-56">🖋️ 다시 앉는 문장의 방</span><span class="text-gray-500">3/10 ~ 3/13</span><span class="ml-auto font-medium">19명</span></div>
-        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded"><span class="w-56">🧩 빌드하다 길 잃음</span><span class="text-gray-500">3/16 ~ 3/19</span><span class="ml-auto font-medium">18명</span></div>
-        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded"><span class="w-56">✨ 같은 곳, 다른 리듬</span><span class="text-gray-500">3/23 ~ 3/26</span><span class="ml-auto font-medium">17명</span></div>
-        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded"><span class="w-56">🌲 내일 말고 지금</span><span class="text-gray-500">3/30 ~ 4/2</span><span class="ml-auto font-medium">15명</span></div>
-      </div>
+      <div id="dash-program-list" class="space-y-3 text-sm"></div>
     </div>
 
     <!-- 프로그램 관리 -->
@@ -3038,6 +3032,44 @@
         }
         dashMonthlyData[y] = { months: monthArr, currentMonth: curMonth, gender };
       }
+      renderDashProgramList();
+    }
+
+    // 대시보드 - 프로그램별 현황 동적 렌더링
+    function renderDashProgramList() {
+      const container = document.getElementById('dash-program-list');
+      if (!container) return;
+      // 프로그램별 인원 집계 (실시간 reservations 기반)
+      const pgmCounts = {};
+      reservations.forEach(r => {
+        const key = _findPgmKey(r.pgm);
+        if (!key) return;
+        pgmCounts[key] = (pgmCounts[key] || 0) + 1;
+      });
+      // pgmColors의 schedule 기준으로 정렬 (월/일 오름차순)
+      const entries = Object.entries(pgmColors).sort((a, b) => {
+        const parseDate = (s) => {
+          if (!s) return 99999;
+          const m = s.match(/(\d+)\/(\d+)/);
+          return m ? parseInt(m[1]) * 100 + parseInt(m[2]) : 99999;
+        };
+        return parseDate(a[1].schedule) - parseDate(b[1].schedule);
+      });
+      if (entries.length === 0) {
+        container.innerHTML = '<p class="text-gray-400">등록된 프로그램이 없습니다.</p>';
+        return;
+      }
+      container.innerHTML = entries.map(([name, val]) => {
+        const count = pgmCounts[name] || 0;
+        const schedule = val.schedule ? val.schedule.replace(/\(.+?\)/g, '') : '-';
+        const dotColor = val.bg || '#60a5fa';
+        return `<div class="flex items-center gap-3 p-3 bg-gray-50 rounded">
+          <span class="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${dotColor}"></span>
+          <span class="w-56 truncate" title="${name}">${name}</span>
+          <span class="text-gray-500 text-xs">${schedule}</span>
+          <span class="ml-auto font-medium">${count}명</span>
+        </div>`;
+      }).join('');
     }
     function getDashData(yr){
       return dashMonthlyData[yr] || {months:[0,0,0,0,0,0,0,0,0,0,0,0], currentMonth:null, gender:{}};
