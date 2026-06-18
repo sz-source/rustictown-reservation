@@ -1133,15 +1133,24 @@
     function _cdMonth(dateStr) { return +dateStr.split('-')[1]; }
     function _cdYear(dateStr) { return +dateStr.split('-')[0]; }
     function _cdPrefix(y, m) { return `${y}-${String(m).padStart(2,'0')}`; }
-    // localStorage 백업 저장 + 서버 동기화 (fire-and-forget)
+    // localStorage 백업만 (전체 저장). 서버는 부분 업데이트로만 동기화.
     function saveCleaningToStorage() {
       try { localStorage.setItem('cleaningSchedule', JSON.stringify(cleaningSchedule)); } catch(e) {}
-      // 서버에도 비동기 저장 (다른 기기 동기화용)
-      fetch('/api/cleaning-save', {
+    }
+    // 부분 업데이트: 변경된 항목만 서버에 보내서 race condition 방지
+    function syncCleaningChange(sets, dels) {
+      saveCleaningToStorage();
+      const setsArr = Array.isArray(sets) ? sets : [];
+      const delsArr = Array.isArray(dels) ? dels : [];
+      if (setsArr.length === 0 && delsArr.length === 0) return;
+      fetch('/api/cleaning-update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
-        body: JSON.stringify({ cleaningSchedule })
-      }).catch(err => console.warn('청소 일정 서버 저장 실패:', err));
+        body: JSON.stringify({
+          sets: setsArr.map(c => ({ room: c.room, date: c.date, person: c.person || '미정', done: !!c.done })),
+          dels: delsArr.map(c => ({ room: c.room, date: c.date }))
+        })
+      }).catch(err => console.warn('청소 일정 서버 동기화 실패:', err));
     }
     function loadCleaningFromStorage() {
       try {
@@ -2207,9 +2216,10 @@
       while (roomCleans.some(c => _cdDay(c.date) === startDay - 1 && c.done === targetDone)) startDay--;
       let endDay = day;
       while (roomCleans.some(c => _cdDay(c.date) === endDay + 1 && c.done === targetDone)) endDay++;
+      const toggled = [];
       roomCleans.filter(c => { const d = _cdDay(c.date); return d >= startDay && d <= endDay && c.done === targetDone; })
-        .forEach(c => c.done = !c.done);
-      saveCleaningToStorage();
+        .forEach(c => { c.done = !c.done; toggled.push(c); });
+      syncCleaningChange(toggled, []);
       renderOpsCleaning();
       renderMonthly();
       renderWeekly();
@@ -2260,23 +2270,24 @@
       const endDate = new Date(endStr + 'T00:00:00');
       if (endDate < startDate) { alert('종료일이 시작일보다 앞설 수 없습니다.'); return; }
 
-      let added = 0;
+      const addedItems = [];
       for (const room of targetRooms) {
         const current = new Date(startDate);
         while (current <= endDate) {
           const dateStr = _cds(current.getFullYear(), current.getMonth() + 1, current.getDate());
           const exists = cleaningSchedule.find(c => c.room === room && c.date === dateStr);
           if (!exists) {
-            cleaningSchedule.push({ room, date: dateStr, person, done: false });
-            added++;
+            const item = { room, date: dateStr, person, done: false };
+            cleaningSchedule.push(item);
+            addedItems.push(item);
           }
           current.setDate(current.getDate() + 1);
         }
       }
 
-      if (added === 0) { alert('해당 기간에 이미 청소 일정이 등록되어 있습니다.'); return; }
+      if (addedItems.length === 0) { alert('해당 기간에 이미 청소 일정이 등록되어 있습니다.'); return; }
 
-      saveCleaningToStorage();
+      syncCleaningChange(addedItems, []);
       draggedCleanRooms = [];
       closeModal('cleaning-modal');
       document.getElementById('clean-person').value = '';
@@ -2290,7 +2301,7 @@
       const idx = cleaningSchedule.findIndex(c => c.room === room && c.date === dateStr);
       if (idx === -1) return;
       cleaningSchedule.splice(idx, 1);
-      saveCleaningToStorage();
+      syncCleaningChange([], [{ room, date: dateStr }]);
       renderOpsCleaning();
       renderMonthly();
       renderWeekly();
@@ -2300,11 +2311,15 @@
       if (_cleanDragExisting.length === 0) return;
       const count = _cleanDragExisting.length;
       if (!confirm(`${count}건의 청소 일정을 일괄 삭제하시겠습니까?`)) return;
+      const deletedKeys = [];
       for (const item of _cleanDragExisting) {
         const idx = cleaningSchedule.findIndex(c => c.room === item.room && c.date === item.date);
-        if (idx !== -1) cleaningSchedule.splice(idx, 1);
+        if (idx !== -1) {
+          cleaningSchedule.splice(idx, 1);
+          deletedKeys.push({ room: item.room, date: item.date });
+        }
       }
-      saveCleaningToStorage();
+      syncCleaningChange([], deletedKeys);
       _cleanDragExisting = [];
       draggedCleanRooms = [];
       closeModal('cleaning-modal');
@@ -2360,11 +2375,12 @@
       const pending = _cleanDragExisting.filter(c => !c.done);
       if (pending.length === 0) return;
       if (!confirm(`${pending.length}건을 완료 처리하시겠습니까?`)) return;
+      const changed = [];
       for (const item of pending) {
         const entry = cleaningSchedule.find(c => c.room === item.room && c.date === item.date);
-        if (entry) entry.done = true;
+        if (entry) { entry.done = true; changed.push(entry); }
       }
-      saveCleaningToStorage();
+      syncCleaningChange(changed, []);
       _cleanDragExisting = [];
       draggedCleanRooms = [];
       closeModal('cleaning-modal');
@@ -2377,11 +2393,12 @@
       const done = _cleanDragExisting.filter(c => c.done);
       if (done.length === 0) return;
       if (!confirm(`${done.length}건을 예정으로 되돌리시겠습니까?`)) return;
+      const changed = [];
       for (const item of done) {
         const entry = cleaningSchedule.find(c => c.room === item.room && c.date === item.date);
-        if (entry) entry.done = false;
+        if (entry) { entry.done = false; changed.push(entry); }
       }
-      saveCleaningToStorage();
+      syncCleaningChange(changed, []);
       _cleanDragExisting = [];
       draggedCleanRooms = [];
       closeModal('cleaning-modal');
