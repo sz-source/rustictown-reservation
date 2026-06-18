@@ -1,6 +1,8 @@
 // Vercel Serverless Function: GET /api/reservations
 // 먼데이 보드에서 예약 데이터를 조회하여 프론트엔드 형식으로 변환
 
+import { applyCors, checkOrigin } from './_lib/security.js';
+
 const BOARD_IDS = [18401306495, 18408385383]; // 예약관리 + 디어먼데이 예약관리
 
 // GraphQL 인젝션 방어: 커서 문자열 검증 (영숫자+기본 특수문자만 허용)
@@ -115,12 +117,14 @@ function transformItem(item) {
 }
 
 export default async function handler(req, res) {
-  // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  const cors = applyCors(req, res, 'GET');
+  if (!cors.ok) return;
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Origin 체크: 외부 도메인에서 호출 차단
+  if (!checkOrigin(req)) {
+    return res.status(403).json({ error: 'Forbidden: invalid origin' });
+  }
 
   // API 키 인증
   const apiSecret = process.env.API_SECRET_KEY;

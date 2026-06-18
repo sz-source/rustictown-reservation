@@ -1,7 +1,9 @@
 // Vercel Serverless Function: DELETE /api/reservations-delete
 // 먼데이 보드에서 예약 아이템 삭제
 
-const BOARD_ID = 18401306495;
+import { applyCors, checkOrigin } from './_lib/security.js';
+
+// delete_item은 board_id 없이 item_id만으로 동작하므로 board-agnostic
 
 // GraphQL 인젝션 방어: 숫자 검증
 function sanitizeInt(val) {
@@ -25,11 +27,14 @@ async function mutateMonday(query, token) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  const cors = applyCors(req, res, 'DELETE');
+  if (!cors.ok) return;
   if (req.method !== 'DELETE') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Origin 체크: 외부 도메인에서 mutation 차단
+  if (!checkOrigin(req)) {
+    return res.status(403).json({ error: 'Forbidden: invalid origin' });
+  }
 
   // API 키 인증
   const apiSecret = process.env.API_SECRET_KEY;

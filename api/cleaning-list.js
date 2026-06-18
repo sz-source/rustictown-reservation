@@ -2,12 +2,16 @@
 // Upstash Redis Hash에서 청소 일정 조회 (race condition 방지)
 // Hash 구조: cleaning -> { "{room}::{date}": '{"person":"...","done":true|false}' }
 
+import { applyCors, checkOrigin } from './_lib/security.js';
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  const cors = applyCors(req, res, 'GET');
+  if (!cors.ok) return;
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+  if (!checkOrigin(req)) {
+    return res.status(403).json({ error: 'Forbidden: invalid origin' });
+  }
 
   const apiSecret = process.env.API_SECRET_KEY;
   if (apiSecret && req.headers['x-api-key'] !== apiSecret) {

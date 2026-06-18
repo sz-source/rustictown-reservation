@@ -1,6 +1,8 @@
 // Vercel Serverless Function: PUT /api/reservations-update
 // 기존 먼데이 아이템의 컬럼값 수정 (상태 변경, 숙소 재배정 등)
 
+import { applyCors, checkOrigin } from './_lib/security.js';
+
 const DEFAULT_BOARD_ID = 18401306495;
 // 보드별 상태 컬럼 ID 매핑
 const STATUS_COLUMN = {
@@ -30,11 +32,14 @@ async function mutateMonday(query, token) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'PUT, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  const cors = applyCors(req, res, 'PUT');
+  if (!cors.ok) return;
   if (req.method !== 'PUT') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Origin 체크: 외부 도메인에서 mutation 차단
+  if (!checkOrigin(req)) {
+    return res.status(403).json({ error: 'Forbidden: invalid origin' });
+  }
 
   // API 키 인증
   const apiSecret = process.env.API_SECRET_KEY;

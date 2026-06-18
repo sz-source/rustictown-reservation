@@ -2,12 +2,16 @@
 // 청소 일정 부분 업데이트 (sets / dels). Race condition 방지를 위해 전체 덮어쓰기 대신 변경된 항목만 처리.
 // Body: { sets: [{room, date, person, done}], dels: [{room, date}] }
 
+import { applyCors, checkOrigin } from './_lib/security.js';
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  const cors = applyCors(req, res, 'POST');
+  if (!cors.ok) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  if (!checkOrigin(req)) {
+    return res.status(403).json({ error: 'Forbidden: invalid origin' });
+  }
 
   const apiSecret = process.env.API_SECRET_KEY;
   if (apiSecret && req.headers['x-api-key'] !== apiSecret) {

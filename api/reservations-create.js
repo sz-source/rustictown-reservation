@@ -1,6 +1,8 @@
 // Vercel Serverless Function: POST /api/reservations-create
 // 프론트엔드 폼 데이터를 먼데이 보드에 새 아이템으로 생성
 
+import { applyCors, checkOrigin } from './_lib/security.js';
+
 const BOARD_ID = 18401306495;
 const DEFAULT_GROUP = 'group_title'; // "승인 완료" 그룹
 
@@ -32,11 +34,14 @@ async function mutateMonday(query, token) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  const cors = applyCors(req, res, 'POST');
+  if (!cors.ok) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Origin 체크: 외부 도메인에서 mutation 차단
+  if (!checkOrigin(req)) {
+    return res.status(403).json({ error: 'Forbidden: invalid origin' });
+  }
 
   // API 키 인증
   const apiSecret = process.env.API_SECRET_KEY;
