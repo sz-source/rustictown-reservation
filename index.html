@@ -1150,7 +1150,26 @@
           sets: setsArr.map(c => ({ room: c.room, date: c.date, person: c.person || '미정', done: !!c.done })),
           dels: delsArr.map(c => ({ room: c.room, date: c.date }))
         })
-      }).catch(err => console.warn('청소 일정 서버 동기화 실패:', err));
+      }).then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      }).catch(err => {
+        console.warn('청소 일정 서버 동기화 실패:', err);
+        showSyncToast('⚠️ 청소 일정 서버 동기화 실패 — 다른 기기에 반영되지 않을 수 있습니다');
+      });
+    }
+    // 간단한 토스트 메시지 (서버 동기화 실패 알림용)
+    function showSyncToast(msg) {
+      let toast = document.getElementById('sync-toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'sync-toast';
+        toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#fef3c7;color:#92400e;padding:10px 18px;border-radius:8px;border:1px solid #fbbf24;font-size:13px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.1);max-width:90%;text-align:center';
+        document.body.appendChild(toast);
+      }
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      clearTimeout(showSyncToast._t);
+      showSyncToast._t = setTimeout(() => { toast.style.display = 'none'; }, 5000);
     }
     function loadCleaningFromStorage() {
       try {
@@ -1187,9 +1206,9 @@
           try { localStorage.setItem('cleaningSchedule', JSON.stringify(cleaningSchedule)); } catch(e) {}
           return true;
         } else if (cleaningSchedule.length > 0) {
-          // 서버 빈 상태 + 로컬 데이터 있음 → 마이그레이션 (서버에 업로드)
-          console.log('localStorage → 서버 청소 일정 마이그레이션');
-          saveCleaningToStorage();
+          // 서버 빈 상태 + 로컬 데이터 있음 → 부분 업데이트로 서버에 업로드
+          console.log(`localStorage → 서버 청소 일정 마이그레이션 (${cleaningSchedule.length}건)`);
+          syncCleaningChange(cleaningSchedule, []);
         }
         return false;
       } catch (err) {
@@ -1265,7 +1284,7 @@
       const groups = {};
       roomRes.forEach(r => {
         const key = `${r.ci}-${r.co}`;
-        const guestInfo = { guest: r.guest, count: r.count, phone: r.phone, gender: r.gender, status: r.status, id: r.id, org: r.org, pgm: r.pgm, category: r.category };
+        const guestInfo = { guest: r.guest, count: r.count, phone: r.phone, gender: r.gender, status: r.status, id: r.id, org: r.org, pgm: r.pgm, category: r.category, boardId: r.boardId };
         if (!groups[key]) {
           groups[key] = { ...r, guests: [guestInfo] };
         } else {
@@ -1910,16 +1929,19 @@
           }
           openModal('form-modal');
         } else {
-          // Cleaning: 기존 동작
-          const dateStart = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(fromDay).padStart(2,'0')}`;
-          const dateEnd = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(toDay).padStart(2,'0')}`;
+          // Cleaning: 드래그 선택의 year/month 사용 (다른 달 누적 선택 대응)
+          const sel0 = allSelections[0] || {};
+          const cy = sel0.year || calYear;
+          const cm = sel0.month || calMonth;
+          const dateStart = `${cy}-${String(cm).padStart(2,'0')}-${String(fromDay).padStart(2,'0')}`;
+          const dateEnd = `${cy}-${String(cm).padStart(2,'0')}-${String(toDay).padStart(2,'0')}`;
           document.getElementById('clean-date-start').value = dateStart;
           document.getElementById('clean-date-end').value = dateEnd;
           const infoArea = document.getElementById('clean-drag-info');
           const roomWrapper = document.getElementById('clean-room-wrapper');
           if (selectedRooms.length > 1) {
             draggedCleanRooms = [...selectedRooms];
-            if (infoArea) infoArea.innerHTML = `<div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700 mb-3">🧹 선택된 숙소: <strong>${selectedRooms.join(', ')}</strong> (${selectedRooms.length}실) · ${calMonth}/${fromDay}~${calMonth}/${toDay}</div>`;
+            if (infoArea) infoArea.innerHTML = `<div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700 mb-3">🧹 선택된 숙소: <strong>${selectedRooms.join(', ')}</strong> (${selectedRooms.length}실) · ${cm}/${fromDay}~${cm}/${toDay}</div>`;
             if (roomWrapper) roomWrapper.classList.add('hidden');
           } else {
             draggedCleanRooms = [];
@@ -2205,19 +2227,25 @@
     });
 
     // ========== TOGGLE CLEANING STATUS ==========
+    // 날짜 헬퍼: 월 경계를 넘는 연속 일정 확장에 사용
+    function _addDateStr(dateStr, delta) {
+      const d = new Date(dateStr + 'T00:00:00');
+      d.setDate(d.getDate() + delta);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
     function toggleCleanStatus(room, dateStr) {
       const item = cleaningSchedule.find(c => c.room === room && c.date === dateStr);
       if (!item) return;
       const targetDone = item.done;
-      const prefix = dateStr.substring(0, 7); // "YYYY-MM"
-      const roomCleans = cleaningSchedule.filter(c => c.room === room && c.date.startsWith(prefix)).sort((a, b) => a.date.localeCompare(b.date));
-      const day = _cdDay(dateStr);
-      let startDay = day;
-      while (roomCleans.some(c => _cdDay(c.date) === startDay - 1 && c.done === targetDone)) startDay--;
-      let endDay = day;
-      while (roomCleans.some(c => _cdDay(c.date) === endDay + 1 && c.done === targetDone)) endDay++;
+      const sameRoomCleans = cleaningSchedule.filter(c => c.room === room);
+      const hasDate = (date, done) => sameRoomCleans.some(c => c.date === date && c.done === done);
+      // 시작/끝 날짜를 연속된 동일 상태 일정으로 확장 (월 경계 무관)
+      let startDate = dateStr;
+      while (hasDate(_addDateStr(startDate, -1), targetDone)) startDate = _addDateStr(startDate, -1);
+      let endDate = dateStr;
+      while (hasDate(_addDateStr(endDate, 1), targetDone)) endDate = _addDateStr(endDate, 1);
       const toggled = [];
-      roomCleans.filter(c => { const d = _cdDay(c.date); return d >= startDay && d <= endDay && c.done === targetDone; })
+      sameRoomCleans.filter(c => c.date >= startDate && c.date <= endDate && c.done === targetDone)
         .forEach(c => { c.done = !c.done; toggled.push(c); });
       syncCleaningChange(toggled, []);
       renderOpsCleaning();
@@ -2271,6 +2299,7 @@
       if (endDate < startDate) { alert('종료일이 시작일보다 앞설 수 없습니다.'); return; }
 
       const addedItems = [];
+      let skippedCount = 0;
       for (const room of targetRooms) {
         const current = new Date(startDate);
         while (current <= endDate) {
@@ -2280,12 +2309,17 @@
             const item = { room, date: dateStr, person, done: false };
             cleaningSchedule.push(item);
             addedItems.push(item);
+          } else {
+            skippedCount++;
           }
           current.setDate(current.getDate() + 1);
         }
       }
 
       if (addedItems.length === 0) { alert('해당 기간에 이미 청소 일정이 등록되어 있습니다.'); return; }
+      if (skippedCount > 0) {
+        console.log(`청소 등록: 신규 ${addedItems.length}건, 이미 존재 ${skippedCount}건 (담당자 변경은 캘린더에서 직접 수정해주세요)`);
+      }
 
       syncCleaningChange(addedItems, []);
       draggedCleanRooms = [];
@@ -2725,9 +2759,10 @@
       document.getElementById('month-next-btn').textContent = `${nextM}월 ▶`;
 
       const nDays = numDaysIn(calYear, calMonth);
-      const wEnd = Math.min(calWeekStart + 6, nDays);
-      const wEndMonth = wEnd <= nDays ? calMonth : (calMonth === 12 ? 1 : calMonth + 1);
-      const wEndDay = wEnd <= nDays ? wEnd : wEnd - nDays;
+      const rawEnd = calWeekStart + 6;
+      const crosses = rawEnd > nDays;
+      const wEndMonth = crosses ? (calMonth === 12 ? 1 : calMonth + 1) : calMonth;
+      const wEndDay = crosses ? rawEnd - nDays : rawEnd;
       document.getElementById('week-title').textContent = `${calMonth}/${calWeekStart} ~ ${wEndMonth}/${wEndDay}`;
     }
 

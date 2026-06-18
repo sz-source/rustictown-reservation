@@ -29,15 +29,34 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'sets or dels required' });
     }
 
+    // 크기 제한 (남용 방지)
+    const MAX_OPS = 500;
+    if (sets.length + dels.length > MAX_OPS) {
+      return res.status(413).json({ error: `Too many operations (max ${MAX_OPS})` });
+    }
+
+    // 입력 검증
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+    const CONTROL_RE = /[\x00-\x1f\x7f]/;
+    const MAX_ROOM_LEN = 50;
+    const MAX_PERSON_LEN = 50;
+    const isValid = (item) => (
+      item && typeof item.room === 'string' && typeof item.date === 'string'
+      && item.room.length > 0 && item.room.length <= MAX_ROOM_LEN
+      && !CONTROL_RE.test(item.room) && !item.room.includes('::')
+      && DATE_RE.test(item.date)
+    );
+
     const cmds = [];
     for (const item of sets) {
-      if (!item || !item.room || !item.date) continue;
+      if (!isValid(item)) continue;
       const field = `${item.room}::${item.date}`;
-      const value = JSON.stringify({ person: item.person || '미정', done: !!item.done });
+      const personStr = (typeof item.person === 'string' ? item.person : '미정').slice(0, MAX_PERSON_LEN);
+      const value = JSON.stringify({ person: personStr || '미정', done: !!item.done });
       cmds.push(['HSET', 'cleaning', field, value]);
     }
     for (const item of dels) {
-      if (!item || !item.room || !item.date) continue;
+      if (!isValid(item)) continue;
       const field = `${item.room}::${item.date}`;
       cmds.push(['HDEL', 'cleaning', field]);
     }
