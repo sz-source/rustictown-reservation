@@ -1133,7 +1133,16 @@
     function _cdMonth(dateStr) { return +dateStr.split('-')[1]; }
     function _cdYear(dateStr) { return +dateStr.split('-')[0]; }
     function _cdPrefix(y, m) { return `${y}-${String(m).padStart(2,'0')}`; }
-    function saveCleaningToStorage() { try { localStorage.setItem('cleaningSchedule', JSON.stringify(cleaningSchedule)); } catch(e) {} }
+    // localStorage 백업 저장 + 서버 동기화 (fire-and-forget)
+    function saveCleaningToStorage() {
+      try { localStorage.setItem('cleaningSchedule', JSON.stringify(cleaningSchedule)); } catch(e) {}
+      // 서버에도 비동기 저장 (다른 기기 동기화용)
+      fetch('/api/cleaning-save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+        body: JSON.stringify({ cleaningSchedule })
+      }).catch(err => console.warn('청소 일정 서버 저장 실패:', err));
+    }
     function loadCleaningFromStorage() {
       try {
         const saved = localStorage.getItem('cleaningSchedule');
@@ -1149,6 +1158,35 @@
         }
       } catch(e) {}
       return false;
+    }
+    // 서버에서 청소 일정 불러오기 (다른 기기 변경사항 반영)
+    async function loadCleaningFromServer() {
+      try {
+        const res = await fetch('/api/cleaning-list', {
+          headers: { 'x-api-key': API_KEY }
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const serverData = data.cleaningSchedule || [];
+        if (serverData.length > 0) {
+          // 서버 데이터로 갱신
+          cleaningSchedule.length = 0;
+          serverData.forEach(c => {
+            if (!c.date && c.day) c.date = _cds(2026, 3, c.day);
+            cleaningSchedule.push(c);
+          });
+          try { localStorage.setItem('cleaningSchedule', JSON.stringify(cleaningSchedule)); } catch(e) {}
+          return true;
+        } else if (cleaningSchedule.length > 0) {
+          // 서버 빈 상태 + 로컬 데이터 있음 → 마이그레이션 (서버에 업로드)
+          console.log('localStorage → 서버 청소 일정 마이그레이션');
+          saveCleaningToStorage();
+        }
+        return false;
+      } catch (err) {
+        console.warn('청소 일정 서버 로드 실패, localStorage 사용:', err);
+        return false;
+      }
     }
     function buildCleaningSchedule() {
       cleaningSchedule.length = 0;
@@ -2984,10 +3022,18 @@
     if (legendEl) {
       legendEl.innerHTML = '<span><span class="inline-block w-3 h-3 rounded mr-1" style="background:#d1d5db"></span>퇴실완료</span> <span><span class="inline-block w-3 h-3 rounded mr-1" style="background:#fef3c7"></span>청소예정</span> <span><span class="inline-block w-3 h-3 rounded mr-1" style="background:#d1fae5"></span>청소완료</span> <span>🔴 추가침구</span>';
     }
-    // localStorage에 청소 데이터가 있으면 로드, 없으면 기본 데이터 생성
+    // 1) localStorage 즉시 로드 (없으면 기본 데이터)
     if (!loadCleaningFromStorage()) {
       buildCleaningSchedule();
     }
+    // 2) 서버에서 최신 청소 일정 가져오기 (다른 기기 변경사항 동기화)
+    loadCleaningFromServer().then(updated => {
+      if (updated) {
+        renderMonthly();
+        renderWeekly();
+        renderOpsCleaning();
+      }
+    });
 
     // 폴백 데이터로 초기 렌더링 후, API 데이터 비동기 로드
     reservations = fallbackReservations;
