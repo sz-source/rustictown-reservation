@@ -876,20 +876,15 @@
     function premiumBadge(name) { return isPremium(name) ? '<span class="text-amber-500 ml-0.5" title="넓은 숙소">&#9733;</span>' : ''; }
 
     // Program colors
+    // 폐기된 프로그램 (localStorage에 남아있어도 자동 제거)
+    const _ARCHIVED_PGMS = [
+      '🐿️ 앗! 도시의 다람쥐가', '🖋️ 다시 앉는 문장의 방', '🧩 빌드하다 길 잃음',
+      '✨ 같은 곳 다른 리듬', '🌲 내일말고지금', '🏕️ 내일은 숲으로 출근합니다',
+      '🧘 나를 위한 캐시 삭제', '☕ To-Do List는 잠시 휴식 중', '🎨 숲의 팔레트',
+      '🔧 Pipeline(파이프라인)', '🤖 AI특화 포캠1', '📋 기획서 찢고 나온 기획자',
+      '🤖 AI특화 포캠2'
+    ];
     const pgmColors = {
-      '🐿️ 앗! 도시의 다람쥐가': { bg: '#93c5fd', label: '도시의 다람쥐', schedule: '3/3(월)~3/7(토)', nights: '4박5일' },
-      '🖋️ 다시 앉는 문장의 방': { bg: '#a78bfa', label: '문장의 방', schedule: '3/10(월)~3/13(목)', nights: '3박4일' },
-      '🧩 빌드하다 길 잃음': { bg: '#6ee7b7', label: '빌드하다', schedule: '3/16(월)~3/20(금)', nights: '4박5일' },
-      '✨ 같은 곳 다른 리듬': { bg: '#fbbf24', label: '같은 곳', schedule: '3/23(월)~3/27(금)', nights: '4박5일' },
-      '🌲 내일말고지금': { bg: '#f87171', label: '내일말고지금', schedule: '3/30(월)~4/3(금)', nights: '4박5일' },
-      '🏕️ 내일은 숲으로 출근합니다': { bg: '#f472b6', label: '숲출근', schedule: '4/6(월)~4/9(목)', nights: '3박4일' },
-      '🧘 나를 위한 캐시 삭제': { bg: '#38bdf8', label: '캐시삭제', schedule: '4/12(일)~4/15(수)', nights: '3박4일' },
-      '☕ To-Do List는 잠시 휴식 중': { bg: '#fb923c', label: 'ToDo휴식', schedule: '4/15(수)~4/18(토)', nights: '3박4일' },
-      '🎨 숲의 팔레트': { bg: '#c084fc', label: '숲팔레트', schedule: '4/21(화)~4/24(금)', nights: '3박4일' },
-      '🔧 Pipeline(파이프라인)': { bg: '#2dd4bf', label: 'Pipeline', schedule: '4/27(월)~4/30(목)', nights: '3박4일' },
-      '🤖 AI특화 포캠1': { bg: '#818cf8', label: 'AI포캠1', schedule: '5/3(일)~5/7(목)', nights: '4박5일' },
-      '📋 기획서 찢고 나온 기획자': { bg: '#e879f9', label: '기획자', schedule: '5/12(화)~5/15(금)', nights: '3박4일' },
-      '🤖 AI특화 포캠2': { bg: '#60a5fa', label: 'AI포캠2', schedule: '5/17(일)~5/21(목)', nights: '4박5일' },
       '📻 아날로그 숲': { bg: '#22d3ee', label: '아날로그숲', schedule: '8/4(화)~8/7(금)', nights: '3박4일' },
       '💆 리커버리존': { bg: '#fda4af', label: '리커버리', schedule: '8/10(월)~8/13(목)', nights: '3박4일' },
       '🔄 워크스위치': { bg: '#a3e635', label: '워크스위치', schedule: '8/18(화)~8/21(금)', nights: '3박4일' },
@@ -900,21 +895,6 @@
     };
     // 키워드 기반 프로그램 매칭 (API 데이터와 pgmColors 키 불일치 해소)
     const pgmKeywordMap = [
-      ['다람쥐', '🐿️ 앗! 도시의 다람쥐가'],
-      ['문장의방', '🖋️ 다시 앉는 문장의 방'],
-      ['빌드하다', '🧩 빌드하다 길 잃음'],
-      ['같은곳', '✨ 같은 곳 다른 리듬'],
-      ['내일말고', '🌲 내일말고지금'],
-      ['출근합니다', '🏕️ 내일은 숲으로 출근합니다'],
-      ['캐시삭제', '🧘 나를 위한 캐시 삭제'],
-      ['todolist', '☕ To-Do List는 잠시 휴식 중'],
-      ['휴식중', '☕ To-Do List는 잠시 휴식 중'],
-      ['팔레트', '🎨 숲의 팔레트'],
-      ['pipeline', '🔧 Pipeline(파이프라인)'],
-      ['파이프라인', '🔧 Pipeline(파이프라인)'],
-      ['포캠1', '🤖 AI특화 포캠1'],
-      ['포캠2', '🤖 AI특화 포캠2'],
-      ['기획서', '📋 기획서 찢고 나온 기획자'],
       ['아날로그', '📻 아날로그 숲'],
       ['리커버리', '💆 리커버리존'],
       ['워크스위치', '🔄 워크스위치'],
@@ -929,7 +909,9 @@
       try {
         const saved = localStorage.getItem('pgmColors');
         if (saved) Object.assign(pgmColors, JSON.parse(saved));
-        // 삭제된 프로그램은 tombstone으로 제외 (코드 기본값에서 부활 방지)
+        // 폐기된 프로그램은 항상 제거 (localStorage에 남아있어도)
+        _ARCHIVED_PGMS.forEach(name => delete pgmColors[name]);
+        // 사용자가 삭제한 프로그램도 tombstone으로 제외
         const deleted = JSON.parse(localStorage.getItem('pgmColorsDeleted') || '[]');
         deleted.forEach(name => delete pgmColors[name]);
       } catch(e) {}
