@@ -890,6 +890,13 @@
       '🤖 AI특화 포캠1': { bg: '#818cf8', label: 'AI포캠1', schedule: '5/3(일)~5/7(목)', nights: '4박5일' },
       '📋 기획서 찢고 나온 기획자': { bg: '#e879f9', label: '기획자', schedule: '5/12(화)~5/15(금)', nights: '3박4일' },
       '🤖 AI특화 포캠2': { bg: '#60a5fa', label: 'AI포캠2', schedule: '5/17(일)~5/21(목)', nights: '4박5일' },
+      '📻 아날로그 숲': { bg: '#22d3ee', label: '아날로그숲', schedule: '8/4(화)~8/7(금)', nights: '3박4일' },
+      '💆 리커버리존': { bg: '#fda4af', label: '리커버리', schedule: '8/10(월)~8/13(목)', nights: '3박4일' },
+      '🔄 워크스위치': { bg: '#a3e635', label: '워크스위치', schedule: '8/18(화)~8/21(금)', nights: '3박4일' },
+      '🌗 온앤오프': { bg: '#14b8a6', label: '온앤오프', schedule: '8/24(월)~8/27(목)', nights: '3박4일' },
+      '☮️ 숲피스': { bg: '#4ade80', label: '숲피스', schedule: '9/1(화)~9/4(금)', nights: '3박4일' },
+      '📌 미루던 일 시작': { bg: '#f97316', label: '미루던일', schedule: '9/8(화)~9/11(금)', nights: '3박4일' },
+      '🚀 시작부터 한다': { bg: '#eab308', label: '시작부터', schedule: '9/14(월)~9/17(목)', nights: '3박4일' },
     };
     // 키워드 기반 프로그램 매칭 (API 데이터와 pgmColors 키 불일치 해소)
     const pgmKeywordMap = [
@@ -908,6 +915,13 @@
       ['포캠1', '🤖 AI특화 포캠1'],
       ['포캠2', '🤖 AI특화 포캠2'],
       ['기획서', '📋 기획서 찢고 나온 기획자'],
+      ['아날로그', '📻 아날로그 숲'],
+      ['리커버리', '💆 리커버리존'],
+      ['워크스위치', '🔄 워크스위치'],
+      ['온앤오프', '🌗 온앤오프'],
+      ['숲피스', '☮️ 숲피스'],
+      ['미루던', '📌 미루던 일 시작'],
+      ['시작부터', '🚀 시작부터 한다'],
     ];
     // pgmColors localStorage 영속화
     function savePgmToStorage() { try { localStorage.setItem('pgmColors', JSON.stringify(pgmColors)); } catch(e) {} }
