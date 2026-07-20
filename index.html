@@ -914,12 +914,10 @@
     function loadPgmFromStorage() {
       try {
         const saved = localStorage.getItem('pgmColors');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          // Merge 방식: 기본값(코드) 유지 + localStorage 변경사항 덮어쓰기
-          // → 코드에 새로 추가된 프로그램도 자동 표시됨
-          Object.assign(pgmColors, parsed);
-        }
+        if (saved) Object.assign(pgmColors, JSON.parse(saved));
+        // 삭제된 프로그램은 tombstone으로 제외 (코드 기본값에서 부활 방지)
+        const deleted = JSON.parse(localStorage.getItem('pgmColorsDeleted') || '[]');
+        deleted.forEach(name => delete pgmColors[name]);
       } catch(e) {}
     }
     loadPgmFromStorage();
@@ -2601,6 +2599,12 @@
       pgmColors[name] = { bg: selectedPgmColor, label: short, schedule, nights };
       editingPgmName = null;
       savePgmToStorage();
+      // 재추가 시 tombstone에서 제거
+      try {
+        const deleted = JSON.parse(localStorage.getItem('pgmColorsDeleted') || '[]');
+        const idx = deleted.indexOf(name);
+        if (idx !== -1) { deleted.splice(idx, 1); localStorage.setItem('pgmColorsDeleted', JSON.stringify(deleted)); }
+      } catch(e) {}
       closeModal('pgm-modal');
       renderPgmList();
       populateFormSelects(); // 예약 폼 드롭다운 갱신
@@ -2610,6 +2614,10 @@
       if (confirm(`"${name}" 프로그램을 삭제하시겠습니까?`)) {
         delete pgmColors[name];
         savePgmToStorage();
+        try {
+          const deleted = JSON.parse(localStorage.getItem('pgmColorsDeleted') || '[]');
+          if (!deleted.includes(name)) { deleted.push(name); localStorage.setItem('pgmColorsDeleted', JSON.stringify(deleted)); }
+        } catch(e) {}
         renderPgmList();
         populateFormSelects();
       }
