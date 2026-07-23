@@ -2604,12 +2604,14 @@
       closeModal('pgm-modal');
       renderPgmList();
       populateFormSelects(); // 예약 폼 드롭다운 갱신
+      renderMonthly(); renderWeekly(); // 캘린더 칩 색상 반영
     }
 
     function deletePgm(name) {
       if (confirm(`"${name}" 프로그램을 삭제하시겠습니까?`)) {
         delete pgmColors[name];
         savePgmToStorage();
+        renderMonthly(); renderWeekly();
         try {
           const deleted = JSON.parse(localStorage.getItem('pgmColorsDeleted') || '[]');
           if (!deleted.includes(name)) { deleted.push(name); localStorage.setItem('pgmColorsDeleted', JSON.stringify(deleted)); }
