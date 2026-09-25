@@ -5,36 +5,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>러스틱타운 심청예약관리</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <style>
-    * { font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; }
-    .tab-active { border-bottom: 3px solid #2563eb; color: #2563eb; font-weight: 600; }
-    .bar { border-radius: 4px; padding: 2px 6px; font-size: 12px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+    /* ── 러스틱타운 DESIGN.md 토큰 · 심청 톤(그린 강조, 구조는 삼기 앱과 동일) ── */
+    :root { --accent:#0c8f54; --accent-d:#0a6b3e; --accent-l:#E7F7EF; --accent-m:#bfe8d2; --red:#ff2746; --ink:#222222; --mut:#7A828C; --line:#E6E8EC; --paper:#ffffff; --bg:#f7f9fc; }
+    * { font-family: 'Pretendard', system-ui, -apple-system, sans-serif; }
+    .tab-active { border-bottom: 3px solid var(--accent); color: var(--accent); font-weight: 600; }
+    .bar { border-radius: 5px; padding: 2px 6px; font-size: 12px; font-weight: 500; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
     .bar:hover { opacity: 0.85; }
-    .view-btn.active { background: #2563eb; color: #fff; }
-    .view-btn { background: #e5e7eb; color: #374151; }
+    .view-btn.active { background: var(--accent); color: #fff; }
+    .view-btn { background: #e9edf3; color: #374151; }
     .nav-tab { padding: 10px 20px; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
     .nav-tab:hover { background: #f3f4f6; }
-    .nav-tab.active { border-bottom-color: #2563eb; color: #2563eb; font-weight: 600; }
+    .nav-tab.active { border-bottom-color: var(--accent); color: var(--accent); font-weight: 600; }
     .modal-overlay { background: rgba(0,0,0,0.4); }
-    .cell { min-width: 38px; height: 62px; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; position: relative; }
+    .cell { min-width: 36px; height: 62px; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; position: relative; }
     .clean-bar { border-radius: 4px; padding: 2px 4px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; margin-top: 2px; text-align: center; }
     .cell-week { min-width: 120px; height: 60px; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; position: relative; }
-    .room-header { min-width: 90px; background: #f9fafb; border-right: 1px solid #d1d5db; border-bottom: 1px solid #e5e7eb; padding: 4px 8px; position: sticky; left: 0; z-index: 10; }
-    .date-header { min-width: 38px; text-align: center; padding: 4px 2px; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #d1d5db; background: #f9fafb; font-size: 12px; }
+    .room-header { min-width: 100px; white-space: nowrap; background: var(--bg); border-right: 1px solid #d1d5db; border-bottom: 1px solid #e5e7eb; padding: 4px 8px; position: sticky; left: 0; z-index: 10; }
+    .date-header { min-width: 36px; text-align: center; padding: 4px 2px; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #d1d5db; background: #f9fafb; font-size: 12px; }
     .date-header-week { min-width: 120px; text-align: center; padding: 6px 4px; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #d1d5db; background: #f9fafb; font-size: 13px; }
-    .weekend { background: #fef2f2 !important; }
-    .holiday { background: #fef2f2 !important; }
-    .today { background: #eff6ff !important; font-weight: 700; }
-    .cell.drag-highlight { background: #d1fae5 !important; outline: 2px solid #059669; outline-offset: -1px; }
-    .cell.multi-selected { background: #bfdbfe !important; outline: 2px solid #3b82f6; outline-offset: -1px; }
-    .cell.drag-start { border-left: 2px solid #059669; }
-    .cell.drag-end { border-right: 2px solid #059669; }
-    .drag-tooltip { position: fixed; background: #065f46; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 12px; pointer-events: none; z-index: 100; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+    .weekend { background: #f1f3f6 !important; }
+    .holiday { background: #f1f3f6 !important; }
+    .today { background: var(--accent-l) !important; font-weight: 700; }
+    .cell.drag-highlight { background: var(--accent-l) !important; outline: 2px solid var(--accent); outline-offset: -1px; }
+    .cell.multi-selected { background: var(--accent-m) !important; outline: 2px solid var(--accent); outline-offset: -1px; }
+    .cell.drag-start { border-left: 2px solid var(--accent); }
+    .cell.drag-end { border-right: 2px solid var(--accent); }
+    .drag-tooltip { position: fixed; background: var(--accent-d); color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 12px; pointer-events: none; z-index: 100; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
     /* Row hover highlight for calendar tables */
     #monthly-table tr:hover > td:not(.room-header),
-    #weekly-table tr:hover > td:not(.room-header) { background-color: #f0f9ff !important; }
+    #weekly-table tr:hover > td:not(.room-header) { background-color: #f3f6fb !important; }
     #monthly-table tr:hover > td.room-header,
-    #weekly-table tr:hover > td.room-header { background-color: #e0f2fe !important; }
+    #weekly-table tr:hover > td.room-header { background-color: var(--accent-l) !important; }
 
     /* 로고 줄바꿈: 데스크탑 숨김, 모바일 표시 */
     .mobile-br { display: none !important; }
@@ -53,9 +56,9 @@
         border-left: 3px solid transparent;
       }
       .nav-tabs-open .nav-tab.active {
-        border-left-color: #2563eb;
+        border-left-color: var(--accent);
         border-bottom-color: #e5e7eb;
-        background: #eff6ff;
+        background: var(--accent-l);
       }
       .nav-tabs-container { width: 100%; order: 10; }
 
@@ -111,7 +114,6 @@
       .cell { min-width: 28px; height: 48px; }
       .room-header { min-width: 58px; font-size: 11px; padding: 2px 4px; }
       .date-header { min-width: 28px; font-size: 10px; padding: 3px 1px; }
-      .bar { font-size: 10px; padding: 1px 3px; }
       .clean-bar { font-size: 10px; }
       #monthly-table { min-width: 900px !important; }
       #weekly-table { min-width: 560px !important; }
@@ -194,6 +196,47 @@
       border-radius: 50%; animation: spin 0.6s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── 표 자체 스크롤 → 날짜 헤더·숙소 열 동시 고정 ── */
+    #view-monthly, #view-weekly { max-height: calc(100vh - 170px); overflow: auto; }
+    #monthly-table thead th, #weekly-table thead th { position: sticky; top: 0; z-index: 15; }
+    #monthly-table thead th.room-header, #weekly-table thead th.room-header { z-index: 20; }
+    @media (max-width: 767px) {
+      #view-monthly, #view-weekly { max-height: calc(100vh - 140px); }
+      .calendar-header-wrap h1, .cal-legend { display: none !important; }
+      .cell, .date-header { min-width: 40px; }
+      .bar { min-height: 26px; font-size: 12px; padding: 2px 4px; }
+      button, .view-btn, .nav-tab { min-height: 40px; }
+      .room-header { min-width: 92px; }
+    }
+    /* ── 브랜드 매핑: Tailwind 기본 파랑/초록 → 심청 그린 ── */
+    html body { background: var(--bg); color: var(--ink); }
+    html .bg-gray-50 { background-color: var(--bg); }
+    html .bg-blue-500, html .bg-blue-400, html .bg-emerald-500 { background-color: var(--accent); }
+    html .hover\:bg-blue-600:hover, html .hover\:bg-emerald-600:hover { background-color: var(--accent-d); }
+    html .text-blue-500, html .text-blue-600, html .text-blue-700, html .hover\:text-blue-500:hover, html .hover\:text-blue-700:hover,
+    html .text-emerald-700, html .text-emerald-600, html .text-emerald-500, html .text-green-600, html .text-green-700, html .hover\:text-emerald-700:hover { color: var(--accent); }
+    html .bg-blue-50, html .hover\:bg-blue-50:hover, html .hover\:bg-blue-100:hover, html .bg-emerald-100, html .bg-emerald-50, html .bg-green-50, html .bg-green-100, html .hover\:bg-emerald-100:hover, html .hover\:bg-green-100:hover { background-color: var(--accent-l); }
+    html .bg-blue-100 { background-color: var(--accent-m); }
+    html .border-blue-200, html .border-emerald-200, html .border-green-200, html .border-green-300 { border-color: var(--accent-m); }
+    html .ring-blue-400 { --tw-ring-color: var(--accent); }
+    html .accent-emerald-500, html .accent-green-600 { accent-color: var(--accent); }
+    html #btn-admin-new-cleaning.bg-emerald-500 { background-color: var(--paper); color: var(--accent); border: 1.5px solid var(--accent); }
+    html #btn-admin-new-cleaning.bg-emerald-500:hover { background-color: var(--accent-l); }
+    html .bg-red-500 { background-color: var(--red); }
+    html .text-red-500, html .text-red-400, html .text-red-600, html .hover\:text-red-600:hover { color: var(--red); }
+    html .border, html .border-t, html .border-b { border-color: var(--line); }
+    html .rounded-lg.border.bg-white { border-radius: 10px; }
+    html button.bg-blue-500.text-white, html button.bg-emerald-500.text-white { box-shadow: 3px 3px 0 rgba(0,0,0,.18); border-radius: 8px; }
+    html button.bg-blue-500.text-white:active, html button.bg-emerald-500.text-white:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 rgba(0,0,0,.18); }
+    .modal-overlay > div.bg-white { border: 2px solid var(--ink); box-shadow: 5px 5px 0 rgba(0,0,0,.13); border-radius: 12px; }
+    nav { border-bottom: 1px solid var(--line); }
+    .rt-wordmark { font-weight: 800; color: var(--accent); font-size: 15px; letter-spacing: .8px; }
+    .rt-sub { font-weight: 700; color: var(--ink); }
+    #page-calendar h1, #page-reservations h1, #page-dashboard h1, #page-cleanguide h1 { font-size: 22px; font-weight: 800; color: var(--accent-d); letter-spacing: -.2px; }
+    #month-title, #week-title { font-size: 20px; font-weight: 800; letter-spacing: -.2px; }
+    .nav-tab { font-size: 15px; font-weight: 600; }
+    .status-pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -206,7 +249,7 @@
         <button id="hamburger-btn" class="md:hidden p-2 rounded hover:bg-gray-100" onclick="toggleMobileNav()">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
-        <span class="text-base font-bold py-3 pr-4 whitespace-nowrap">🏕 <span class="text-blue-500">러스틱타운</span><br class="mobile-br"> 심청예약관리</span>
+        <span class="py-3 pr-4 whitespace-nowrap"><span class="rt-wordmark">RUSTIC TOWN</span><br class="mobile-br"> <span class="rt-sub">심청점 예약관리</span></span>
         <div id="nav-tabs-container" class="nav-tabs-container hidden md:flex items-center gap-1">
           <div class="nav-tab active" onclick="showPage('calendar');closeMobileNav()">캘린더</div>
           <div id="nav-reservations" class="nav-tab" onclick="showPage('reservations');closeMobileNav()">예약 리스트</div>
@@ -218,7 +261,7 @@
         <button id="header-login-btn" class="text-sm bg-blue-500 text-white px-4 py-1.5 rounded hover:bg-blue-600" onclick="document.getElementById('login-modal').classList.remove('hidden')">로그인</button>
         <div id="header-user-info" class="hidden flex items-center gap-2">
           <span id="header-role-label" class="text-sm font-medium text-blue-600">관리자</span>
-          <button id="btn-switch-view" class="hidden text-sm border px-3 py-1 rounded" onclick="toggleViewMode()">🧹 청소팀 뷰</button>
+          <button id="btn-switch-view" class="hidden text-sm border px-3 py-1 rounded" onclick="toggleViewMode()">청소팀 뷰</button>
           <button class="text-sm text-gray-500 hover:text-gray-700 border px-3 py-1 rounded" onclick="confirmLogout()">로그아웃</button>
         </div>
       </div>
@@ -334,7 +377,7 @@
         <div><label class="block text-sm text-gray-600 mb-1">메모</label><textarea id="clean-memo" class="border rounded w-full px-3 py-2 text-sm h-16" placeholder="특이사항 (추가침구 등)"></textarea></div>
         <div id="clean-bulk-info" class="hidden">
           <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-            📋 선택 범위 내 <strong id="clean-bulk-count">0</strong>건 — 🧹 예정 <strong id="clean-bulk-pending">0</strong>건 · ✅ 완료 <strong id="clean-bulk-done">0</strong>건
+            선택 범위 내 <strong id="clean-bulk-count">0</strong>건 — 예정 <strong id="clean-bulk-pending">0</strong>건 · ✅ 완료 <strong id="clean-bulk-done">0</strong>건
           </div>
         </div>
         <div class="flex gap-2 pt-2">
@@ -354,7 +397,7 @@
       <!-- Calendar Header -->
       <div class="calendar-header-wrap flex items-center justify-between mb-4 flex-wrap gap-2">
         <div class="flex items-center gap-3">
-          <h1 class="text-xl font-bold">🏕 예약 캘린더</h1>
+          <h1 class="text-xl font-bold">예약 캘린더</h1>
           <div class="flex rounded-lg overflow-hidden border">
             <button class="view-btn active px-3 py-1.5 text-sm font-medium" onclick="switchView('monthly', this)">월간</button>
             <button class="view-btn px-3 py-1.5 text-sm font-medium" onclick="switchView('weekly', this)">주간</button>
@@ -380,7 +423,7 @@
       </div>
 
       <!-- Legend -->
-      <div class="flex items-center justify-between px-1 py-1">
+      <div class="cal-legend flex items-center justify-between px-1 py-1">
         <div id="pgm-legend" class="flex flex-wrap items-center gap-3 text-xs text-gray-500"></div>
         <div class="flex items-center gap-3 text-xs text-gray-500">
           <span><span class="inline-block w-3 h-3 rounded mr-1" style="background:#3b82f6"></span>오늘</span>
@@ -405,33 +448,25 @@
   <!-- ==================== Page 3: 예약 리스트 ==================== -->
   <div id="page-reservations" class="page hidden max-w-6xl mx-auto p-6">
     <div class="flex items-center justify-between mb-4">
-      <h1 class="text-xl font-bold">📋 예약 관리</h1>
+      <h1 class="text-xl font-bold">예약 관리</h1>
       <button class="bg-blue-500 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-600" onclick="openNewReservationForm()">+ 새 예약</button>
+    </div>
+    <div class="filter-row flex gap-2 mb-4 flex-wrap items-center">
+      <input id="list-q" type="search" placeholder="이름·전화·프로그램·소속 검색" class="border rounded px-3 py-2 text-sm flex-1 min-w-[180px]" oninput="renderReservationsList()">
+      <select id="list-status" class="border rounded px-3 py-2 text-sm bg-white" onchange="renderReservationsList()"><option value="">전체 상태</option><option>신규</option><option>예약승인안내</option><option>3일전안내</option><option>1일전안내</option><option>이용중</option><option>퇴실완료</option></select>
+      <select id="list-pgm" class="border rounded px-3 py-2 text-sm bg-white" onchange="renderReservationsList()"><option value="">전체 프로그램</option></select>
     </div>
 
     <!-- 입퇴실 예정 -->
     <div class="grid md:grid-cols-2 gap-4 mb-6">
       <div class="bg-white rounded-lg border p-4">
-        <h3 class="font-semibold text-sm mb-3">📥 이번 주 입실 예정 (3/10 주)</h3>
-        <div class="space-y-2 text-sm">
-          <div class="flex gap-3"><span class="text-gray-500 w-20">3/10 (화)</span><span>🖋️ 다시 앉는 문장의 방 — 19명</span></div>
-        </div>
+        <h3 class="font-semibold text-sm mb-3">앞으로 7일 입실 예정</h3>
+        <div class="space-y-2 text-sm" id="upcoming-checkin"></div>
       </div>
       <div class="bg-white rounded-lg border p-4">
-        <h3 class="font-semibold text-sm mb-3">📤 이번 주 퇴실 예정</h3>
-        <div class="space-y-2 text-sm">
-          <div class="flex gap-3"><span class="text-gray-500 w-20">3/13 (금)</span><span>🖋️ 다시 앉는 문장의 방 — 19명 전원 퇴실</span></div>
-        </div>
+        <h3 class="font-semibold text-sm mb-3">앞으로 7일 퇴실 예정</h3>
+        <div class="space-y-2 text-sm" id="upcoming-checkout"></div>
       </div>
-    </div>
-
-    <!-- Filters -->
-    <div class="filter-row flex gap-2 mb-4 flex-wrap">
-      <select class="border rounded px-3 py-1.5 text-sm bg-white"><option>전체 상태</option><option>신규</option><option>예약승인안내</option><option>3일전안내</option><option>1일전안내</option><option>이용중</option><option>퇴실완료</option></select>
-      <select class="border rounded px-3 py-1.5 text-sm bg-white"><option>전체 프로그램</option><option>🐿️ 도시의 다람쥐</option><option>🖋️ 다시 앉는 문장의 방</option><option>🧩 빌드하다 길 잃음</option><option>✨ 같은 곳, 다른 리듬</option><option>🌲 내일 말고 지금</option></select>
-      <select class="border rounded px-3 py-1.5 text-sm bg-white"><option>전체 숙소</option><option>장미1</option><option>장미2</option><option>국화1</option><option>국화3</option><option>심청1</option><option>심청2</option></select>
-      <select class="border rounded px-3 py-1.5 text-sm bg-white"><option>3월</option><option>4월</option></select>
-      <input type="text" placeholder="🔍 검색..." class="border rounded px-3 py-1.5 text-sm flex-1 min-w-[150px]">
     </div>
 
     <!-- Table (JS-generated) -->
@@ -455,7 +490,7 @@
 
   <!-- ==================== Page 4: 대시보드 ==================== -->
   <div id="page-dashboard" class="page hidden max-w-5xl mx-auto p-6">
-    <h1 class="text-xl font-bold mb-6">📊 대시보드/관리</h1>
+    <h1 class="text-xl font-bold mb-6">대시보드 / 관리</h1>
 
     <!-- 통계 영역: 토글 버튼 + 연도 선택 -->
     <div class="flex items-center justify-between mb-4">
@@ -473,11 +508,11 @@
     <!-- 월별 뷰 -->
     <div id="dash-view-monthly" class="dash-grid grid md:grid-cols-3 gap-6 mb-6">
       <div class="md:col-span-2 bg-white rounded-lg border p-5">
-        <h2 class="font-semibold mb-4">📅 <span id="dash-monthly-title">2026</span>년 월별 예약 수</h2>
+        <h2 class="font-semibold mb-4"><span id="dash-monthly-title">2026</span>년 월별 예약 수</h2>
         <div id="dash-monthly-grid" class="grid grid-cols-6 gap-3"></div>
       </div>
       <div class="bg-white rounded-lg border p-5">
-        <h2 class="font-semibold mb-4" id="dash-month-gender-title">👥 3월 성비</h2>
+        <h2 class="font-semibold mb-4" id="dash-month-gender-title">이달 성비</h2>
         <div class="flex justify-center" id="dash-month-gender-chart"></div>
         <div class="flex justify-center gap-6 mt-3 text-sm" id="dash-month-gender-legend"></div>
       </div>
@@ -486,26 +521,26 @@
     <!-- 연간 뷰 -->
     <div id="dash-view-annual" class="grid md:grid-cols-3 gap-6 mb-6 hidden">
       <div class="md:col-span-2 bg-white rounded-lg border p-5">
-        <h2 class="font-semibold mb-4">📈 <span id="dash-annual-title">2026</span> 연간 예약 수</h2>
+        <h2 class="font-semibold mb-4"><span id="dash-annual-title">2026</span> 연간 예약 수</h2>
         <div id="dash-annual-bar" class="flex items-end gap-2 h-40"></div>
         <div class="text-right text-sm text-gray-500 mt-3">누적: <span class="font-bold text-gray-800" id="dash-annual-total">247명</span></div>
       </div>
       <div class="bg-white rounded-lg border p-5">
-        <h2 class="font-semibold mb-4" id="dash-annual-gender-title">👥 2026 연간 성비</h2>
+        <h2 class="font-semibold mb-4" id="dash-annual-gender-title">연간 성비</h2>
         <div class="flex justify-center" id="dash-annual-gender-chart"></div>
         <div class="flex justify-center gap-6 mt-3 text-sm" id="dash-annual-gender-legend"></div>
       </div>
     </div>
 
     <div class="bg-white rounded-lg border p-5">
-      <h2 class="font-semibold mb-4" id="dash-program-title">📅 프로그램별 현황</h2>
+      <h2 class="font-semibold mb-4" id="dash-program-title">프로그램별 현황</h2>
       <div id="dash-program-list" class="space-y-3 text-sm max-h-96 overflow-y-auto pr-1"></div>
     </div>
 
     <!-- 프로그램 관리 -->
     <div class="bg-white rounded-lg border p-5 mt-6">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="font-semibold">🎯 프로그램 관리</h2>
+        <h2 class="font-semibold">프로그램 관리</h2>
         <button class="bg-blue-500 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-600" onclick="addPgm()">+ 프로그램 추가</button>
       </div>
       <div class="space-y-2" id="pgm-list"></div>
@@ -514,7 +549,7 @@
     <!-- 숙소 관리 -->
     <div class="bg-white rounded-lg border p-5 mt-6">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="font-semibold">🏠 숙소 관리</h2>
+        <h2 class="font-semibold">숙소 관리</h2>
         <span class="text-sm text-gray-400" id="room-count"></span>
       </div>
       <p class="text-sm text-gray-500 mb-3">사용불가 처리된 숙소는 예약 등록 시 선택할 수 없으며, 캘린더에서 비활성화 표시됩니다.</p>
@@ -524,7 +559,7 @@
 
   <!-- ==================== Page: 청소가이드 ==================== -->
   <div id="page-cleanguide" class="page hidden max-w-3xl mx-auto p-6">
-    <h1 class="text-xl font-bold mb-2">🧹 숙소 청소 & 퀄리티 관리 가이드</h1>
+    <h1 class="text-xl font-bold mb-2">청소 · 퀄리티 가이드</h1>
     <p class="text-sm text-gray-500 mb-4">입실 직전 기준, 모든 숙소에 공통 적용되는 청소 기준입니다.</p>
 
     <!-- 기본 원칙 -->
@@ -545,8 +580,8 @@
   <div id="login-modal" class="fixed inset-0 modal-overlay z-[60] flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-sm" onclick="event.stopPropagation()">
       <div class="p-6 text-center border-b">
-        <div class="text-2xl mb-1">🏕</div>
-        <h2 class="text-lg font-bold">러스틱타운 심청예약관리</h2>
+        <div class="rt-wordmark mb-1" style="font-size:18px">RUSTIC TOWN</div>
+        <h2 class="text-lg font-bold">심청점 예약관리</h2>
         <p class="text-sm text-gray-400 mt-1">로그인이 필요합니다</p>
       </div>
       <div class="p-6 space-y-4">
@@ -611,7 +646,7 @@
         <!-- 게스트 정보 영역 -->
         <div id="form-guests-area">
           <div class="bg-blue-50 rounded-lg p-3 space-y-3 mb-2" id="guest-form-1">
-            <div class="text-sm font-medium text-blue-700">👤 게스트 1 (대표)</div>
+            <div class="text-sm font-medium text-blue-700">게스트 1 (대표)</div>
             <div class="grid grid-cols-2 gap-3">
               <div><label class="block text-xs text-gray-500 mb-1">성함 *</label><input type="text" class="border rounded w-full px-3 py-1.5 text-sm" placeholder="이름"></div>
               <div><label class="block text-xs text-gray-500 mb-1">전화번호</label><input type="text" class="border rounded w-full px-3 py-1.5 text-sm" placeholder="010-0000-0000"></div>
@@ -649,8 +684,8 @@
           <div class="text-sm font-medium text-blue-700 mb-1">공통 정보</div>
           <div><label class="block text-sm text-gray-600 mb-1">프로그램 *</label><select id="bulk-program" class="border rounded w-full px-3 py-2 text-sm bg-white" onchange="onBulkProgramSelect()"></select></div>
           <div class="grid grid-cols-2 gap-3">
-            <div><label class="block text-sm text-gray-600 mb-1">입실일 *</label><input id="bulk-checkin" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-16"></div>
-            <div><label class="block text-sm text-gray-600 mb-1">퇴실일 *</label><input id="bulk-checkout" type="date" class="border rounded w-full px-3 py-2 text-sm" value="2026-03-19"></div>
+            <div><label class="block text-sm text-gray-600 mb-1">입실일 *</label><input id="bulk-checkin" type="date" class="border rounded w-full px-3 py-2 text-sm"></div>
+            <div><label class="block text-sm text-gray-600 mb-1">퇴실일 *</label><input id="bulk-checkout" type="date" class="border rounded w-full px-3 py-2 text-sm"></div>
           </div>
         </div>
         <div>
@@ -794,7 +829,7 @@
       if (switchBtn) {
         switchBtn.classList.toggle('hidden', loggedInAs !== 'admin');
         if (loggedInAs === 'admin') {
-          switchBtn.textContent = isAdminViewingClean ? '🔙 관리자 뷰' : '🧹 청소팀 뷰';
+          switchBtn.textContent = isAdminViewingClean ? '관리자 뷰로' : '청소팀 뷰';
           switchBtn.className = isAdminViewingClean
             ? 'text-sm border border-blue-300 text-blue-600 bg-blue-50 px-3 py-1 rounded hover:bg-blue-100'
             : 'text-sm border border-green-300 text-green-600 bg-green-50 px-3 py-1 rounded hover:bg-green-100';
@@ -869,7 +904,7 @@
       { name: '하이파이브 203호', type: 'Q / 1인' }, { name: '하이파이브 204호', type: 'Q / 1인' },
     ];
     // rooms.type localStorage 영속화
-    function saveRoomTypesToStorage() { try { const map = {}; rooms.forEach(r => map[r.name] = r.type); localStorage.setItem('roomTypes', JSON.stringify(map)); } catch(e) {} }
+    function saveRoomTypesToStorage() { try { const map = {}; rooms.forEach(r => map[r.name] = r.type); localStorage.setItem('roomTypes', JSON.stringify(map)); syncSetting('roomTypes', map); } catch(e) {} }
     function loadRoomTypesFromStorage() { try { const saved = localStorage.getItem('roomTypes'); if (saved) { const map = JSON.parse(saved); rooms.forEach(r => { if (map[r.name]) r.type = map[r.name]; }); } } catch(e) {} }
     loadRoomTypesFromStorage();
     function isPremium(name) { return premiumRooms.includes(name); }
@@ -885,13 +920,13 @@
       '🤖 AI특화 포캠2'
     ];
     const pgmColors = {
-      '📻 아날로그 숲': { bg: '#22d3ee', label: '아날로그숲', schedule: '8/4(화)~8/7(금)', nights: '3박4일' },
-      '💆 리커버리존': { bg: '#fda4af', label: '리커버리', schedule: '8/10(월)~8/13(목)', nights: '3박4일' },
-      '🔄 워크스위치': { bg: '#a3e635', label: '워크스위치', schedule: '8/18(화)~8/21(금)', nights: '3박4일' },
-      '🌗 온앤오프': { bg: '#14b8a6', label: '온앤오프', schedule: '8/24(월)~8/27(목)', nights: '3박4일' },
-      '☮️ 숲피스': { bg: '#4ade80', label: '숲피스', schedule: '9/1(화)~9/4(금)', nights: '3박4일' },
-      '📌 미루던 일 시작': { bg: '#f97316', label: '미루던일', schedule: '9/8(화)~9/11(금)', nights: '3박4일' },
-      '🚀 시작부터 한다': { bg: '#eab308', label: '시작부터', schedule: '9/14(월)~9/17(목)', nights: '3박4일' },
+      '📻 아날로그 숲': { bg: '#0e7490', label: '아날로그숲', schedule: '8/4(화)~8/7(금)', nights: '3박4일' },
+      '💆 리커버리존': { bg: '#be123c', label: '리커버리', schedule: '8/10(월)~8/13(목)', nights: '3박4일' },
+      '🔄 워크스위치': { bg: '#4d7c0f', label: '워크스위치', schedule: '8/18(화)~8/21(금)', nights: '3박4일' },
+      '🌗 온앤오프': { bg: '#0f766e', label: '온앤오프', schedule: '8/24(월)~8/27(목)', nights: '3박4일' },
+      '☮️ 숲피스': { bg: '#15803d', label: '숲피스', schedule: '9/1(화)~9/4(금)', nights: '3박4일' },
+      '📌 미루던 일 시작': { bg: '#c2410c', label: '미루던일', schedule: '9/8(화)~9/11(금)', nights: '3박4일' },
+      '🚀 시작부터 한다': { bg: '#b45309', label: '시작부터', schedule: '9/14(월)~9/17(목)', nights: '3박4일' },
     };
     // 키워드 기반 프로그램 매칭 (API 데이터와 pgmColors 키 불일치 해소)
     const pgmKeywordMap = [
@@ -904,7 +939,7 @@
       ['시작부터', '🚀 시작부터 한다'],
     ];
     // pgmColors localStorage 영속화
-    function savePgmToStorage() { try { localStorage.setItem('pgmColors', JSON.stringify(pgmColors)); } catch(e) {} }
+    function savePgmToStorage() { try { localStorage.setItem('pgmColors', JSON.stringify(pgmColors)); syncSetting('pgmColors', pgmColors); } catch(e) {} }
     function loadPgmFromStorage() {
       try {
         const saved = localStorage.getItem('pgmColors');
@@ -937,19 +972,35 @@
       }
       return '';
     }
-    function pgmColor(pgm) { return _findPgm(pgm)?.bg || '#60a5fa'; }
+    // 구 파스텔 팔레트(흰 글씨 대비 부족) → 고대비 팔레트 자동 치환 (서버/로컬 저장값 마이그레이션)
+    const _OLD_TO_NEW = { '#22d3ee':'#0e7490','#fda4af':'#be123c','#a3e635':'#4d7c0f','#14b8a6':'#0f766e','#4ade80':'#15803d','#f97316':'#c2410c','#eab308':'#b45309','#60a5fa':'#1d4ed8','#a78bfa':'#7c3aed','#93c5fd':'#1e40af','#6ee7b7':'#0f766e','#fbbf24':'#b45309','#f87171':'#9f1239','#f472b6':'#be123c','#38bdf8':'#0369a1','#fb923c':'#c2410c','#c084fc':'#9333ea','#2dd4bf':'#0e7490','#818cf8':'#6d28d9','#e879f9':'#a21caf' };
+    function migratePalette() {
+      let changed = false;
+      Object.values(pgmColors).forEach(v => { const n = _OLD_TO_NEW[(v.bg || '').toLowerCase()]; if (n) { v.bg = n; changed = true; } });
+      if (changed) savePgmToStorage();
+    }
+    migratePalette();
+    function pgmColor(pgm) { return _findPgm(pgm)?.bg || '#475569'; }
     function pgmLabel(pgm) { return _findPgm(pgm)?.label || pgm; }
     function isCompleted(status) { return status === '퇴실완료'; }
+    // 캘린더 범례: 이번 달에 걸친 프로그램 색상 + 상태 안내
+    function renderPgmLegend() {
+      const el = document.getElementById('pgm-legend'); if (!el) return;
+      const s0 = toDayOffset(calYear, calMonth, 1), e0 = toDayOffset(calYear, calMonth, numDaysIn(calYear, calMonth));
+      const pgms = [...new Set(reservations.filter(r => r.ci <= e0 && r.co >= s0 && !isCompleted(r.status)).map(r => r.pgm).filter(Boolean))];
+      const dot = (bg, t) => `<span class="whitespace-nowrap"><span class="inline-block w-3 h-3 rounded mr-1 align-middle" style="background:${bg}"></span>${t}</span>`;
+      el.innerHTML = pgms.map(p => dot(pgmColor(p), pgmLabel(p))).join('') + dot('#d1d5db', '퇴실완료') + dot('#fef3c7', '청소예정') + dot('#d1fae5', '청소완료') + dot('#ef4444', '추가침구');
+    }
 
     // Status-specific colors
-    const statusColors = {
-      '신규': { bg: '#333333', text: '#fff' },
-      '예약승인안내': { bg: '#579bfc', text: '#fff' },
-      '3일전안내': { bg: '#fdab3d', text: '#fff' },
-      '1일전안내': { bg: '#9cd326', text: '#fff' },
-      '이용중': { bg: '#00c875', text: '#fff' },
-      '퇴실완료': { bg: '#c4c4c4', text: '#fff' },
-      '환불/취소': { bg: '#bb3354', text: '#fff' },
+    const statusColors = { // DESIGN.md pill 규격: 연배경 + 진한 글자
+      '신규': { bg: '#EAF0FA', text: '#00327a' },
+      '예약승인안내': { bg: '#EAF0FA', text: '#00327a' },
+      '3일전안내': { bg: '#FFF4E0', text: '#9a5b00' },
+      '1일전안내': { bg: '#FFF4E0', text: '#9a5b00' },
+      '이용중': { bg: '#E7F7EF', text: '#0c8f54' },
+      '퇴실완료': { bg: '#F1F3F5', text: '#7A828C' },
+      '환불/취소': { bg: '#FFE9ED', text: '#c8102e' },
     };
     function statusColor(status) { return statusColors[status]?.bg || '#c4c4c4'; }
     function statusTextColor(status) { return statusColors[status]?.text || '#fff'; }
@@ -957,6 +1008,25 @@
     // Reservations: 서버에서 로드 (폴백: 하드코딩 데이터)
     // API 인증 키 (Vercel 환경변수 API_SECRET_KEY와 동일한 값 설정)
     const API_KEY = 'rtsc-2026-simcheong-key';
+
+    // ── 팀 공용 설정 (사용불가 숙소·프로그램·숙소정보): 서버 저장, localStorage는 캐시 ──
+    function syncSetting(field, value) {
+      fetch('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY }, body: JSON.stringify({ field, value }) })
+        .catch(e => console.warn('설정 서버 저장 실패:', field, e));
+    }
+    async function loadSettingsFromServer() {
+      try {
+        const r = await fetch('/api/settings', { headers: { 'x-api-key': API_KEY } });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const st = (await r.json()).settings || {};
+        if (st.disabledRooms) { disabledRooms.length = 0; disabledRooms.push(...st.disabledRooms); localStorage.setItem('disabledRooms', JSON.stringify(st.disabledRooms)); }
+        if (st.roomTypes) { localStorage.setItem('roomTypes', JSON.stringify(st.roomTypes)); loadRoomTypesFromStorage(); }
+        if (st.pgmColorsDeleted) localStorage.setItem('pgmColorsDeleted', JSON.stringify(st.pgmColorsDeleted));
+        if (st.pgmColors) localStorage.setItem('pgmColors', JSON.stringify(st.pgmColors));
+        if (st.pgmColors || st.pgmColorsDeleted) { loadPgmFromStorage(); migratePalette(); }
+        return true;
+      } catch (e) { console.warn('설정 서버 로드 실패, 로컬 캐시 사용:', e.message); return false; }
+    }
 
     let reservations = [];
     let reservationsLoaded = false; // API 로드 완료 여부
@@ -1233,7 +1303,7 @@
     // ── 캘린더 상태 ──
     let calYear = new Date().getFullYear();
     let calMonth = new Date().getMonth() + 1;   // 현재 표시 월 (1~12)
-    let calWeekStart = 8; // 주간 뷰 시작일 (day-of-month)
+    let calWeekStart = new Date().getDate(); // 주간 뷰 시작일 = 오늘
 
     // 해당 월의 일수
     function numDaysIn(y, m) { return new Date(y, m, 0).getDate(); }
@@ -1437,6 +1507,9 @@
       html += '</tbody>';
       table.innerHTML = html;
       setupDrag();
+      const wrapEl = document.getElementById('view-monthly'); const todayTh = table.querySelector('th.today');
+      if (wrapEl && todayTh) wrapEl.scrollLeft = Math.max(0, todayTh.offsetLeft - 100 - 36 * 2);
+      renderPgmLegend();
       setupTouch();
     }
 
@@ -1530,7 +1603,7 @@
                 const cleanBarLeft = halfCell ? 'left:50%;' : 'left:2px;';
                 const barWidth = halfCell ? `calc(${(spanLen - 1) * 100}% + ${(spanLen - 1)}px)` : 'calc(100% - 4px)';
                 const cleanDateStr = _cds(calYear, calMonth, cleanSpan.startDay);
-                cellContent += `<div class="clean-bar" data-clean-room="${room.name}" data-clean-date="${cleanDateStr}" onclick="showCleanPopup('${room.name}','${cleanDateStr}',event)" style="position:absolute;bottom:2px;${cleanBarLeft}width:${barWidth};background:${cleanSpan.done?'#d1fae5':'#fef3c7'};color:${cleanSpan.done?'#065f46':'#92400e'};z-index:3;padding:2px 4px;font-size:12px;border-radius:4px;pointer-events:auto;cursor:pointer">${cleanSpan.done?'✓ 청소완료':'🧹 청소예정'}</div>`;
+                cellContent += `<div class="clean-bar" data-clean-room="${room.name}" data-clean-date="${cleanDateStr}" onclick="showCleanPopup('${room.name}','${cleanDateStr}',event)" style="position:absolute;bottom:2px;${cleanBarLeft}width:${barWidth};background:${cleanSpan.done?'#d1fae5':'#fef3c7'};color:${cleanSpan.done?'#065f46':'#92400e'};z-index:3;padding:2px 4px;font-size:12px;border-radius:4px;pointer-events:auto;cursor:pointer">${cleanSpan.done?'청소완료':'청소예정'}</div>`;
               }
             }
 
@@ -1544,9 +1617,35 @@
     }
 
     // ========== RENDER RESERVATIONS LIST ==========
+    // 앞으로 7일 입실/퇴실 예정 (예약 리스트 상단 카드)
+    function renderUpcoming() {
+      const t = new Date();
+      const today = toDayOffset(t.getFullYear(), t.getMonth() + 1, t.getDate());
+      const fmt = off => { const d = fromDayOffset(off); return `${d.month}/${d.day} (${dayNames[new Date(d.year, d.month - 1, d.day).getDay()]})`; };
+      const build = key => {
+        const g = {};
+        reservations.filter(r => r[key] >= today && r[key] < today + 7).forEach(r => { const k = `${String(r[key]).padStart(5, '0')}|${pgmLabel(r.pgm) || '기타'}`; g[k] = (g[k] || 0) + (r.count || 1); });
+        const rows = Object.keys(g).sort().map(k => { const [off, pgm] = k.split('|'); return `<div class="flex gap-3"><span class="text-gray-500 w-20 shrink-0">${fmt(+off)}</span><span>${pgm} — ${g[k]}명</span></div>`; });
+        return rows.length ? rows.join('') : '<div class="text-gray-400">없음</div>';
+      };
+      const ci = document.getElementById('upcoming-checkin'), co = document.getElementById('upcoming-checkout');
+      if (ci) ci.innerHTML = build('ci');
+      if (co) co.innerHTML = build('co');
+    }
     function renderReservationsList() {
+      renderUpcoming();
       const tbody = document.getElementById('reservations-tbody');
-      const activeRes = reservations.filter(r => !isCompleted(r.status));
+      const q = (document.getElementById('list-q')?.value || '').trim().toLowerCase();
+      const fStatus = document.getElementById('list-status')?.value || '';
+      const pgmSel = document.getElementById('list-pgm');
+      if (pgmSel && pgmSel.options.length <= 1) pgmSel.innerHTML = '<option value="">전체 프로그램</option>' + Object.keys(pgmColors).map(k => `<option value="${k}">${k}</option>`).join('');
+      const fPgm = pgmSel?.value || '';
+      const activeRes = reservations.filter(r => {
+        if (fStatus ? r.status !== fStatus : isCompleted(r.status)) return false;
+        if (fPgm && _findPgmKey(r.pgm) !== fPgm) return false;
+        if (q && ![r.guest, r.phone, r.pgm, r.org].some(v => (v || '').toLowerCase().includes(q))) return false;
+        return true;
+      }).sort((a, b) => a.ci - b.ci || a.room.localeCompare(b.room));
       let html = '';
       activeRes.forEach((r, i) => {
         html += `<tr class="border-t hover:bg-gray-50 cursor-pointer" onclick="showDetail(this)" data-res='${JSON.stringify(r).replace(/'/g, '&#39;')}'>`;
@@ -1555,11 +1654,11 @@
         html += `<td class="px-4 py-3" data-label="기간">${fmtOffset(r.ci)} ~ ${fmtOffset(r.co)}</td>`;
         html += `<td class="px-4 py-3 text-center" data-label="인원">${r.count}명</td>`;
         html += `<td class="px-4 py-3" data-label="프로그램"><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:${pgmColor(r.pgm)}"></span>${r.pgm}</td>`;
-        html += `<td class="px-4 py-3 text-center" data-label="상태"><span class="px-2 py-0.5 rounded text-xs" style="background:${statusColor(r.status)};color:${statusTextColor(r.status)}">${r.status}</span></td>`;
+        html += `<td class="px-4 py-3 text-center" data-label="상태"><span class="status-pill" style="background:${statusColor(r.status)};color:${statusTextColor(r.status)}">${r.status}</span></td>`;
         html += '</tr>';
       });
       tbody.innerHTML = html;
-      document.getElementById('reservations-count').textContent = `전체 ${activeRes.length}건 (퇴실완료 제외)`;
+      document.getElementById('reservations-count').textContent = `${activeRes.length}건${fStatus ? '' : ' (퇴실완료 제외)'}`;
     }
 
     // ========== SHOW DETAIL MODAL ==========
@@ -1696,8 +1795,8 @@
         </div>
         ${canEdit ? `
         <div class="flex gap-2 pt-3 mt-3 border-t">
-          <button id="detail-save-btn" class="flex-1 py-2 text-sm text-white bg-blue-500 hover:bg-blue-600 rounded font-medium" onclick="saveDetailEdit()">💾 저장</button>
-          <button class="px-4 py-2 text-sm text-red-500 hover:bg-red-50 rounded border border-red-200 font-medium" onclick="deleteReservationConfirm('${guestId}', '${guestName.replace(/'/g, "\\'")}')">🗑️</button>
+          <button id="detail-save-btn" class="flex-1 py-2 text-sm text-white bg-blue-500 hover:bg-blue-600 rounded font-medium" onclick="saveDetailEdit()">저장</button>
+          <button class="px-4 py-2 text-sm text-red-500 hover:bg-red-50 rounded border border-red-200 font-medium" onclick="deleteReservationConfirm('${guestId}', '${guestName.replace(/'/g, "\\'")}')">삭제</button>
         </div>` : ''}
       `;
     }
@@ -1757,7 +1856,7 @@
       const boardId = curGuest.boardId || _detailRes.boardId;
       const ok = await updateReservation(itemId, { ...updates, boardId });
       if (ok) closeModal('detail-modal');
-      else { btn.disabled = false; btn.textContent = '💾 저장'; }
+      else { btn.disabled = false; btn.textContent = '저장'; }
     }
 
     // ========== DRAG TO CREATE RESERVATION (multi-room) ==========
@@ -1935,7 +2034,7 @@
           const roomWrapper = document.getElementById('clean-room-wrapper');
           if (selectedRooms.length > 1) {
             draggedCleanRooms = [...selectedRooms];
-            if (infoArea) infoArea.innerHTML = `<div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700 mb-3">🧹 선택된 숙소: <strong>${selectedRooms.join(', ')}</strong> (${selectedRooms.length}실) · ${cm}/${fromDay}~${cm}/${toDay}</div>`;
+            if (infoArea) infoArea.innerHTML = `<div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700 mb-3">선택된 숙소: <strong>${selectedRooms.join(', ')}</strong> (${selectedRooms.length}실) · ${cm}/${fromDay}~${cm}/${toDay}</div>`;
             if (roomWrapper) roomWrapper.classList.add('hidden');
           } else {
             draggedCleanRooms = [];
@@ -2181,7 +2280,7 @@
       _cleanPopupDate = dateStr;
       const popup = document.getElementById('clean-popup');
       document.getElementById('clean-popup-info').textContent = `${room} · ${_cdMonth(dateStr)}/${_cdDay(dateStr)}`;
-      document.getElementById('clean-popup-status').textContent = item.done ? '✅ 청소완료' : '🧹 청소예정';
+      document.getElementById('clean-popup-status').textContent = item.done ? '청소완료' : '청소예정';
       document.getElementById('clean-popup-toggle').textContent = item.done ? '예정으로 변경' : '완료로 변경';
       popup.classList.remove('hidden');
       // 위치 계산
@@ -2521,7 +2620,7 @@
         return `<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
           <div class="w-4 h-4 rounded-full flex-shrink-0" style="background:${val.bg}"></div>
           <div class="flex-1 min-w-0"><div class="font-medium text-sm truncate">${fullName}</div>${scheduleInfo}</div>
-          <button class="text-gray-400 hover:text-blue-500 text-sm flex-shrink-0" onclick="editPgm('${fullName.replace(/'/g,"\\'")}')">✏️</button>
+          <button class="text-gray-400 hover:text-blue-500 text-sm flex-shrink-0" onclick="editPgm('${fullName.replace(/'/g,"\\'")}')">수정</button>
           <button class="text-red-400 hover:text-red-600 text-sm flex-shrink-0" onclick="deletePgm('${fullName.replace(/'/g,"\\'")}')">삭제</button>
         </div>`;
       }).join('');
@@ -2599,7 +2698,7 @@
       try {
         const deleted = JSON.parse(localStorage.getItem('pgmColorsDeleted') || '[]');
         const idx = deleted.indexOf(name);
-        if (idx !== -1) { deleted.splice(idx, 1); localStorage.setItem('pgmColorsDeleted', JSON.stringify(deleted)); }
+        if (idx !== -1) { deleted.splice(idx, 1); localStorage.setItem('pgmColorsDeleted', JSON.stringify(deleted)); syncSetting('pgmColorsDeleted', deleted); }
       } catch(e) {}
       closeModal('pgm-modal');
       renderPgmList();
@@ -2614,7 +2713,7 @@
         renderMonthly(); renderWeekly();
         try {
           const deleted = JSON.parse(localStorage.getItem('pgmColorsDeleted') || '[]');
-          if (!deleted.includes(name)) { deleted.push(name); localStorage.setItem('pgmColorsDeleted', JSON.stringify(deleted)); }
+          if (!deleted.includes(name)) { deleted.push(name); localStorage.setItem('pgmColorsDeleted', JSON.stringify(deleted)); syncSetting('pgmColorsDeleted', deleted); }
         } catch(e) {}
         renderPgmList();
         populateFormSelects();
@@ -2624,7 +2723,7 @@
     // ========== ROOM MANAGEMENT ==========
     const disabledRooms = ['연꽃'];  // 고장/사용불가 숙소 (기본값)
     // disabledRooms localStorage 영속화
-    function saveDisabledRoomsToStorage() { try { localStorage.setItem('disabledRooms', JSON.stringify(disabledRooms)); } catch(e) {} }
+    function saveDisabledRoomsToStorage() { try { localStorage.setItem('disabledRooms', JSON.stringify(disabledRooms)); syncSetting('disabledRooms', disabledRooms); } catch(e) {} }
     (function loadDisabledRoomsFromStorage() { try { const saved = localStorage.getItem('disabledRooms'); if (saved) { disabledRooms.length = 0; disabledRooms.push(...JSON.parse(saved)); } } catch(e) {} })();
     function isRoomDisabled(name) { return disabledRooms.includes(name); }
 
@@ -2658,7 +2757,7 @@
         return `<div class="flex items-center gap-3 p-3 ${disabled ? 'bg-red-50 opacity-60' : 'bg-gray-50'} rounded-lg">
           <span class="font-medium flex-1">${r.name} ${star} <span class="text-gray-400 text-xs">${r.type}</span></span>
           ${badge}
-          <button class="text-gray-400 hover:text-blue-500 text-sm" onclick="startRoomEdit('${r.name}')" title="숙소 정보 수정">✏️</button>
+          <button class="text-gray-400 hover:text-blue-500 text-sm" onclick="startRoomEdit('${r.name}')" title="숙소 정보 수정">수정</button>
           ${toggleBtn}
         </div>`;
       }).join('');
@@ -3077,9 +3176,7 @@
 
     // Dynamic legend
     const legendEl = document.getElementById('pgm-legend');
-    if (legendEl) {
-      legendEl.innerHTML = '<span><span class="inline-block w-3 h-3 rounded mr-1" style="background:#d1d5db"></span>퇴실완료</span> <span><span class="inline-block w-3 h-3 rounded mr-1" style="background:#fef3c7"></span>청소예정</span> <span><span class="inline-block w-3 h-3 rounded mr-1" style="background:#d1fae5"></span>청소완료</span> <span>🔴 추가침구</span>';
-    }
+    if (legendEl) renderPgmLegend();
     // 1) localStorage 즉시 로드 (없으면 기본 데이터)
     if (!loadCleaningFromStorage()) {
       buildCleaningSchedule();
@@ -3104,10 +3201,12 @@
     renderOpsCleaning();
     populateFormSelects();
 
-    // 로그인 상태면 서버 데이터 로드 (탭 복원은 applyRole에서 처리)
-    if (savedRole) {
-      fetchReservations();
-    }
+    if (window.innerWidth < 768) switchView('weekly', document.querySelectorAll('.view-btn')[1]); // 모바일 기본 = 주간
+    // 팀 공용 설정을 서버에서 받은 뒤 예약 데이터 로드 (탭 복원은 applyRole에서 처리)
+    loadSettingsFromServer().then(() => {
+      renderMonthly(); renderWeekly(); populateFormSelects(); renderRoomList();
+      if (savedRole) fetchReservations();
+    });
     renderPgmList();
     renderRoomList();
     document.getElementById('room-count').textContent = `총 ${rooms.length}실`;
@@ -3243,7 +3342,7 @@
       // 월별 성비 (현재월 기준)
       const cm = data.currentMonth;
       const mg = cm && data.gender[cm] ? data.gender[cm] : null;
-      document.getElementById('dash-month-gender-title').textContent = mg ? `👥 ${cm}월 성비` : '👥 성비';
+      document.getElementById('dash-month-gender-title').textContent = mg ? `${cm}월 성비` : '👥 성비';
       if(mg){
         const t=mg.f+mg.m;
         document.getElementById('dash-month-gender-chart').innerHTML = makeDonut(t,mg.f,mg.m,`${dashYear}.${String(cm).padStart(2,'0')}`);
@@ -3275,7 +3374,7 @@
       document.getElementById('dash-annual-bar').innerHTML = bars;
       document.getElementById('dash-annual-total').textContent = total+'명';
       // 연간 성비
-      document.getElementById('dash-annual-gender-title').textContent = `👥 ${dashYear} 연간 성비`;
+      document.getElementById('dash-annual-gender-title').textContent = `${dashYear} 연간 성비`;
       let tf=0,tm=0;
       Object.values(data.gender).forEach(g=>{tf+=g.f;tm+=g.m;});
       const tt=tf+tm;
@@ -3455,7 +3554,7 @@
       for (let i = 1; i <= count; i++) {
         const isFirst = i === 1;
         html += `<div class="${isFirst ? 'bg-blue-50' : 'bg-gray-50'} rounded-lg p-3 space-y-3 ${i < count ? 'mb-2' : ''}" id="guest-form-${i}">
-          <div class="text-sm font-medium ${isFirst ? 'text-blue-700' : 'text-gray-600'}">👤 게스트 ${i}${isFirst ? ' (대표)' : ''}</div>
+          <div class="text-sm font-medium ${isFirst ? 'text-blue-700' : 'text-gray-600'}">게스트 ${i}${isFirst ? ' (대표)' : ''}</div>
           <div class="grid grid-cols-2 gap-3">
             <div><label class="block text-xs text-gray-500 mb-1">성함${isFirst ? ' *' : ''}</label><input type="text" class="border rounded w-full px-3 py-1.5 text-sm" placeholder="이름"></div>
             <div><label class="block text-xs text-gray-500 mb-1">전화번호</label><input type="text" class="border rounded w-full px-3 py-1.5 text-sm" placeholder="010-0000-0000"></div>
