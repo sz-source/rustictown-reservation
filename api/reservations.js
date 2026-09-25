@@ -210,7 +210,7 @@ export default async function handler(req, res) {
       .filter(r => r.status !== '환불/취소');
 
     // 캐싱: 60초 CDN 캐시, 5분 stale-while-revalidate
-    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+    res.setHeader('Cache-Control', 'private, no-store'); // CDN 캐시 금지: 캐시된 응답이 API 키 검사를 우회하던 문제
 
     return res.status(200).json({
       reservations,
