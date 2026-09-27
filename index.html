@@ -1512,7 +1512,7 @@
       table.innerHTML = html;
       setupDrag();
       const wrapEl = document.getElementById('view-monthly'); const todayTh = table.querySelector('th.today');
-      if (wrapEl && todayTh) wrapEl.scrollLeft = Math.max(0, todayTh.offsetLeft - 100 - 36 * 2);
+      if (wrapEl) wrapEl.scrollLeft = todayTh ? Math.max(0, todayTh.offsetLeft - 100 - 36 * 2) : 0; // 다른 달은 1일부터
       renderPgmLegend();
       setupTouch();
     }
