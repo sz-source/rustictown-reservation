@@ -983,12 +983,17 @@
     function pgmLabel(pgm) { return _findPgm(pgm)?.label || pgm; }
     function isCompleted(status) { return status === '퇴실완료'; }
     // 캘린더 범례: 이번 달에 걸친 프로그램 색상 + 상태 안내
-    function renderPgmLegend() {
+    function renderPgmLegend() { // 프로그램명은 바에 적혀 있으므로 범례는 상태만
       const el = document.getElementById('pgm-legend'); if (!el) return;
-      const s0 = toDayOffset(calYear, calMonth, 1), e0 = toDayOffset(calYear, calMonth, numDaysIn(calYear, calMonth));
-      const pgms = [...new Set(reservations.filter(r => r.ci <= e0 && r.co >= s0 && !isCompleted(r.status)).map(r => r.pgm).filter(Boolean))];
       const dot = (bg, t) => `<span class="whitespace-nowrap"><span class="inline-block w-3 h-3 rounded mr-1 align-middle" style="background:${bg}"></span>${t}</span>`;
-      el.innerHTML = pgms.map(p => dot(pgmColor(p), pgmLabel(p))).join('') + dot('#d1d5db', '퇴실완료') + dot('#fef3c7', '청소예정') + dot('#d1fae5', '청소완료') + dot('#ef4444', '추가침구');
+      el.innerHTML = dot('#d1d5db', '퇴실완료') + dot('#fef3c7', '청소예정') + dot('#d1fae5', '청소완료') + dot('#ef4444', '추가침구');
+    }
+    // 바 툴팁: 잘린 글자 대신 전체 내용 (청소팀 뷰는 이름 비노출)
+    function barTitle(r) {
+      const period = `${fmtOffset(r.ci)}~${fmtOffset(r.co)}`;
+      if (currentRole === 'cleaning') return `${r.count}명 · ${period}`;
+      const names = (r.guests && r.guests.length > 1) ? r.guests.map(g => g.guest).join(', ') : r.guest;
+      return `${names} (${r.count}명) · ${pgmLabel(r.pgm) || '프로그램 미지정'} · ${period} · ${r.room}`.replace(/"/g, '&quot;');
     }
 
     // Status-specific colors
@@ -1477,7 +1482,7 @@
                 const halfCell = span > 1;
                 const barLeft = halfCell ? 'left:50%;' : 'left:2px;';
                 const barWidth = halfCell ? `calc(${(span - 1) * 100}% + ${(span - 1)}px)` : 'calc(100% - 4px)';
-                cellContent += `<div class="bar" style="position:absolute;top:4px;${barLeft}width:${barWidth};background:${color};${textColor};${beddingBorder}display:flex;align-items:center;justify-content:center;gap:2px;z-index:2;pointer-events:auto;overflow:hidden" onclick="if(!window._dragOccurred)showDetail(this)" data-res='${JSON.stringify(res)}'>${beddingIcon}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span></div>`;
+                cellContent += `<div class="bar" title="${barTitle(res)}" style="position:absolute;top:4px;${barLeft}width:${barWidth};background:${color};${textColor};${beddingBorder}display:flex;align-items:center;justify-content:center;gap:2px;z-index:2;pointer-events:auto;overflow:hidden" onclick="if(!window._dragOccurred)showDetail(this)" data-res='${JSON.stringify(res)}'>${beddingIcon}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span></div>`;
               }
             }
 
@@ -1587,7 +1592,7 @@
                 const barLeft = fromPrevW ? 'left:0;' : (halfCell ? 'left:50%;' : 'left:2px;');
                 const barWidth = fromPrevW ? (span > 1 ? `calc(${span * 100}% - 2px)` : 'calc(100% - 4px)') : (halfCell ? `calc(${(span - 1) * 100}% + ${(span - 1)}px)` : 'calc(100% - 4px)');
                 const alignStyle = isCleanMode ? 'justify-content:center;' : (fromPrevW ? 'justify-content:flex-start;' : '');
-                cellContent += `<div class="bar py-1.5 px-2" style="position:absolute;top:4px;${barLeft}width:${barWidth};background:${color};${textColor};${beddingBorder}display:flex;align-items:center;gap:3px;${alignStyle}z-index:2;pointer-events:auto;overflow:hidden" onclick="showDetail(this)" data-res='${JSON.stringify(res)}'>${beddingIcon}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span></div>`;
+                cellContent += `<div class="bar py-1.5 px-2" title="${barTitle(res)}" style="position:absolute;top:4px;${barLeft}width:${barWidth};background:${color};${textColor};${beddingBorder}display:flex;align-items:center;gap:3px;${alignStyle}z-index:2;pointer-events:auto;overflow:hidden" onclick="showDetail(this)" data-res='${JSON.stringify(res)}'>${beddingIcon}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span></div>`;
               }
             }
 
