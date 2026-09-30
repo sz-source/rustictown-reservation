@@ -111,7 +111,7 @@
       .calendar-header-wrap > div:last-child { justify-content: flex-end !important; }
 
       /* 캘린더 셀 */
-      .cell { min-width: 28px; height: 48px; }
+      .cell { min-width: 28px; height: 62px; }
       .room-header { min-width: 58px; font-size: 11px; padding: 2px 4px; }
       .date-header { min-width: 28px; font-size: 10px; padding: 3px 1px; }
       .clean-bar { font-size: 10px; }
@@ -1491,9 +1491,9 @@
               const cleanSpan = cleanSpans.find(s => s.startDay === day);
               if (cleanSpan) {
                 const spanLen = Math.min(cleanSpan.endDay, nDays) - cleanSpan.startDay + 1;
-                const halfCell = spanLen > 1;
-                const barLeft = halfCell ? 'left:50%;' : 'left:2px;';
-                const barWidth = halfCell ? `calc(${(spanLen - 1) * 100}% + ${(spanLen - 1)}px)` : 'calc(100% - 4px)';
+                // 청소는 입·퇴실의 반일 구분 없이 해당 날짜 전체에 표시한다.
+                const barLeft = 'left:2px;';
+                const barWidth = `calc(${spanLen * 100}% + ${spanLen - 1}px - 4px)`;
                 const cleanLabel = cleanSpan.done ? '완료' : '예정';
                 const cleanDateStr = _cds(calYear, calMonth, cleanSpan.startDay);
                 cellContent += `<div class="clean-bar" data-clean-room="${room.name}" data-clean-date="${cleanDateStr}" onclick="showCleanPopup('${room.name}','${cleanDateStr}',event)" style="position:absolute;bottom:2px;${barLeft}width:${barWidth};background:${cleanSpan.done?'#d1fae5':'#fef3c7'};color:${cleanSpan.done?'#065f46':'#92400e'};z-index:3;padding:2px 4px;font-size:12px;border-radius:4px;text-align:center;white-space:nowrap;overflow:hidden;pointer-events:auto;cursor:pointer">${cleanLabel}</div>`;
@@ -1603,9 +1603,8 @@
               if (day === clampedStart) {
                 const clampedEnd = Math.min(cleanSpan.endDay, wEnd);
                 const spanLen = clampedEnd - clampedStart + 1;
-                const halfCell = spanLen > 1;
-                const cleanBarLeft = halfCell ? 'left:50%;' : 'left:2px;';
-                const barWidth = halfCell ? `calc(${(spanLen - 1) * 100}% + ${(spanLen - 1)}px)` : 'calc(100% - 4px)';
+                const cleanBarLeft = 'left:2px;';
+                const barWidth = `calc(${spanLen * 100}% + ${spanLen - 1}px - 4px)`;
                 const cleanDateStr = _cds(calYear, calMonth, cleanSpan.startDay);
                 cellContent += `<div class="clean-bar" data-clean-room="${room.name}" data-clean-date="${cleanDateStr}" onclick="showCleanPopup('${room.name}','${cleanDateStr}',event)" style="position:absolute;bottom:2px;${cleanBarLeft}width:${barWidth};background:${cleanSpan.done?'#d1fae5':'#fef3c7'};color:${cleanSpan.done?'#065f46':'#92400e'};z-index:3;padding:2px 4px;font-size:12px;border-radius:4px;pointer-events:auto;cursor:pointer">${cleanSpan.done?'청소완료':'청소예정'}</div>`;
               }
